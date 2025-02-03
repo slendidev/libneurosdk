@@ -1,4 +1,4 @@
-BasedOnStyle: LLVM
+BasedOnStyle: Webkit
 IndentWidth: 2
 BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: false
@@ -7,3 +7,4 @@ ColumnLimit: 0
 AccessModifierOffset: -2
 PointerAlignment: Right
 SpacesBeforeTrailingComments: 1
+UseTab: Always
