@@ -54,9 +54,13 @@ for /f "delims=" %%i in ('git rev-parse HEAD') do set GITHASH=%%i
 	echo	Built libneurosdk.dll and libneurosdk_static.lib
 
 	if "%example%"=="1" (
-		echo	Building example.
-		cl	/std:c17 %OPTIM% /I include examples\example.c libneurosdk_static.lib
-		move	/Y example.exe examples\example.exe
+		echo	Building examples.
+
+		cl	/std:c17 %OPTIM% /I include examples\simple.c libneurosdk_static.lib
+		move	/Y simple.exe examples\simple.exe
+
+		cl	/std:c17 %OPTIM% /I include examples\tictactoe.c libneurosdk_static.lib
+		move	/Y tictactoe.exe examples\tictactoe.exe
 	)
 
 endlocal

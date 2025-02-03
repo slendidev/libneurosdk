@@ -11,8 +11,6 @@
 void print_board(char board[9]) {
 	printf("\n");
 	for (int i = 0; i < 9; i++) {
-		if (i % 3 == 0)
-			printf(" ");
 		printf(" %c ", board[i] == ' ' ? ' ' : board[i]);
 		if (i % 3 != 2)
 			printf("|");
@@ -49,6 +47,27 @@ int main() {
 	neurosdk_error_e err;
 	if ((err = neurosdk_context_create(&ctx, &desc)) != NeuroSDK_None) {
 		printf("Failed to create Neuro context: %s\n", neurosdk_error_string(err));
+		return 1;
+	}
+
+	neurosdk_message_t register_msg;
+	register_msg.kind = NeuroSDK_ActionsRegister;
+	neurosdk_action_t move_action = {
+	    .name = "move",
+	    .description = "Your move. Choose an empty cell index (0-8).",
+	    .json_schema = NULL,
+			.json_schema =
+				"{"
+				"  \"type\": \"integer\","
+				"  \"minimum\": 0,"
+				"  \"maximum\": 8"
+				"}",
+	};
+	register_msg.value.actions_register.actions = &move_action;
+	register_msg.value.actions_register.actions_len = 1;
+
+	if ((err = neurosdk_context_send(&ctx, &register_msg)) != NeuroSDK_None) {
+		printf("Failed to register actions: %s\n", neurosdk_error_string(err));
 		return 1;
 	}
 
