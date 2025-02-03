@@ -50,31 +50,30 @@ int main() {
 		return 1;
 	}
 
+	neurosdk_message_t startup_msg;
+	startup_msg.kind = NeuroSDK_Startup;
+	if ((err = neurosdk_context_send(&ctx, &startup_msg)) != NeuroSDK_None) {
+		printf("Failed to send startup message: %s\n", neurosdk_error_string(err));
+		return 1;
+	}
+
 	neurosdk_message_t register_msg;
 	register_msg.kind = NeuroSDK_ActionsRegister;
 	neurosdk_action_t move_action = {
 	    .name = "move",
 	    .description = "Your move. Choose an empty cell index (0-8).",
-	    .json_schema = NULL,
-			.json_schema =
-				"{"
-				"  \"type\": \"integer\","
-				"  \"minimum\": 0,"
-				"  \"maximum\": 8"
-				"}",
+	    .json_schema =
+	        "{"
+	        "  \"type\": \"integer\","
+	        "  \"minimum\": 0,"
+	        "  \"maximum\": 8"
+	        "}",
 	};
 	register_msg.value.actions_register.actions = &move_action;
 	register_msg.value.actions_register.actions_len = 1;
 
 	if ((err = neurosdk_context_send(&ctx, &register_msg)) != NeuroSDK_None) {
 		printf("Failed to register actions: %s\n", neurosdk_error_string(err));
-		return 1;
-	}
-
-	neurosdk_message_t startup_msg;
-	startup_msg.kind = NeuroSDK_Startup;
-	if ((err = neurosdk_context_send(&ctx, &startup_msg)) != NeuroSDK_None) {
-		printf("Failed to send startup message: %s\n", neurosdk_error_string(err));
 		return 1;
 	}
 
