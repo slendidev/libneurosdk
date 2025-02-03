@@ -33,7 +33,7 @@ set VERSION=v0.1.1
 	if "%release%"=="1" (
 		set "OPTIM=/O2"
 	) else (
-		set "OPTIM=/Od /Zi"
+		set "OPTIM=/Od /Zi /D DEBUG=1"
 	)
 
 :: Retrieve current Git commit hash

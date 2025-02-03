@@ -46,7 +46,10 @@ int main() {
 	    .game_name = "TicTacToe",
 	    .poll_ms = 1000,
 	    .callback_log = NULL,
-	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG};
+#ifdef DEBUG
+	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG
+#endif
+	};
 
 	neurosdk_error_e err;
 	if ((err = neurosdk_context_create(&ctx, &desc)) != NeuroSDK_None) {

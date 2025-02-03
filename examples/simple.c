@@ -20,7 +20,10 @@ int main() {
 	    .game_name = GAME_NAME,
 	    .poll_ms = 100,
 	    .callback_log = NULL,
-	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG};
+#ifdef DEBUG
+	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG
+#endif
+	};
 
 	neurosdk_error_e err = neurosdk_context_create(&ctx, &desc);
 	if (err != NeuroSDK_None) {

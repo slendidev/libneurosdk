@@ -25,7 +25,7 @@ echo Fetching JSON library.
 curl -LO https://raw.githubusercontent.com/sheredom/json.h/refs/heads/master/json.h
 mv -v json.h src/
 
-optimization_options="-O0 -g"
+optimization_options="-O0 -g -DDEBUG"
 if [ "$release" -eq 1 ]; then
 	optimization_options="-O3"
 fi
