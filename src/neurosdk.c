@@ -46,7 +46,9 @@ typedef struct context {
 	struct mg_connection *conn;
 
 	mtx_t out_mtx;
-	char *pending_message;
+	char **pending_messages;
+	int pending_messages_size;
+	int pending_messages_cap;
 } context_t;
 
 static char *escape_string(char const *str) {
@@ -317,6 +319,7 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 			}
 		}
 		neurosdk_message_t msg;
+		printf("Received message: %.*s", (int)wm->data.len, wm->data.buf);
 		ctx->conn_err = parse_s2c_json(&msg, wm->data.buf, (int)wm->data.len);
 		if (!ctx->conn_err) {
 			if (ctx->message_queue_size == ctx->message_queue_cap) {
@@ -329,12 +332,13 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 		c->recv.len = 0;
 	} else if (ev == MG_EV_WAKEUP) {
 		mtx_lock(&ctx->out_mtx);
-		if (ctx->pending_message) {
-			mg_ws_send(c, ctx->pending_message, strlen(ctx->pending_message),
-			           WEBSOCKET_OP_TEXT);
-			free(ctx->pending_message);
-			ctx->pending_message = NULL;
+		for (int i = 0; i < ctx->pending_messages_size; i++) {
+			char *msg = ctx->pending_messages[i];
+			printf("Sending message: %s\n", msg);
+			mg_ws_send(c, msg, strlen(msg), WEBSOCKET_OP_TEXT);
+			free(msg);
 		}
+		ctx->pending_messages_size = 0;
 		mtx_unlock(&ctx->out_mtx);
 	}
 }
@@ -354,6 +358,11 @@ neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
 	}
 	context->game_name = escape_string(desc->game_name);
 	context->poll_ms = desc->poll_ms;
+
+	context->pending_messages_cap = MESSAGE_QUEUE_SIZE;
+	context->pending_messages_size = 0;
+	context->pending_messages =
+	    malloc(context->pending_messages_cap * sizeof(char *));
 
 	context->message_queue_cap = MESSAGE_QUEUE_SIZE;
 	context->message_queue_size = 0;
@@ -400,8 +409,6 @@ neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
 
 	(*ctx) = (neurosdk_context_t)context;
 
-	printf("We should be connected: %d\n", context->connected);
-
 	return res;
 
 cleanup3:
@@ -409,6 +416,7 @@ cleanup3:
 cleanup2:
 	mg_mgr_free(&context->mgr);
 cleanup:
+	free(context->pending_messages);
 	free(context->message_queue);
 	free((void *)context->game_name);
 	free(context);
@@ -424,6 +432,7 @@ neurosdk_error_e neurosdk_context_destroy(neurosdk_context_t *ctx) {
 	mtx_destroy(&context->out_mtx);
 
 	mg_mgr_free(&context->mgr);
+	free(context->pending_messages);
 	free(context->message_queue);
 	free((void *)context->game_name);
 	free(context);
@@ -439,6 +448,9 @@ neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx,
 		return NeuroSDK_Uninitialized;
 	}
 	context_t *context = (context_t *)(*ctx);
+	if (!context->conn) {
+		return NeuroSDK_Uninitialized;
+	}
 
 	context->conn_err = NeuroSDK_None;
 	mg_mgr_poll(&context->mgr, context->poll_ms);
@@ -652,13 +664,16 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 	printf("Queueing message for send: %s (%d bytes)\n", str, bytes);
 
 	mtx_lock(&context->out_mtx);
-	if (context->pending_message) {
-		free(context->pending_message);
+	if (context->pending_messages_size + 1 < context->pending_messages_cap) {
+		context->pending_messages[context->pending_messages_size++] = str;
+	} else {
+		return NeuroSDK_OutOfMemory;
 	}
-	context->pending_message = str;
 	mtx_unlock(&context->out_mtx);
 
 	mg_wakeup(&context->mgr, context->conn->id, NULL, 0);
+	mg_mgr_poll(&context->mgr, context->poll_ms);
+	mg_mgr_poll(&context->mgr, context->poll_ms);
 
 	return NeuroSDK_None;
 }

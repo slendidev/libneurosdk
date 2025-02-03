@@ -26,15 +26,6 @@ int main() {
 
 	printf("Connected to Neuro!\n");
 
-	neurosdk_message_t startup_msg = {.kind = NeuroSDK_Startup};
-	err = neurosdk_context_send(&ctx, &startup_msg);
-	if (err != NeuroSDK_None) {
-		printf("Failed to send startup message: %s\n", neurosdk_error_string(err));
-		neurosdk_context_destroy(&ctx);
-		return 1;
-	}
-	printf("Sent startup message.\n");
-
 	neurosdk_action_t action = {.name = "choose_name",
 	                            .description = "Pick a username",
 	                            .json_schema = "{}"};
@@ -85,7 +76,8 @@ int main() {
 
 					err = neurosdk_context_send(&ctx, &res_msg);
 					if (err != NeuroSDK_None) {
-						printf("Failed to send preemptive action result: %s\n", neurosdk_error_string(err));
+						printf("Failed to send preemptive action result: %s\n",
+						       neurosdk_error_string(err));
 						neurosdk_context_destroy(&ctx);
 						return 1;
 					}

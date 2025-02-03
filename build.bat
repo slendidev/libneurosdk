@@ -1,6 +1,12 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+where git >nul 2>nul
+if %errorlevel% neq 0 (
+	echo Git is not installed or not in PATH. Exiting...
+	exit /b 1
+)
+
 :: Parse command-line arguments
 set release=0
 set example=0
@@ -49,7 +55,8 @@ for /f "delims=" %%i in ('git rev-parse HEAD') do set GITHASH=%%i
 
 	if "%example%"=="1" (
 		echo	Building example.
-		cl	/std:c17 %OPTIM% /I include example.c libneurosdk_static.lib
+		cl	/std:c17 %OPTIM% /I include examples\example.c libneurosdk_static.lib
+		move	/Y example.exe examples\example.exe
 	)
 
 endlocal

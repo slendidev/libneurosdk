@@ -58,13 +58,21 @@ ar rcs libneurosdk.a libneurosdk.o
 echo "Built $shared_lib and libneurosdk.a"
 
 if [ "$example" -eq 1 ]; then
-	echo Building example.
+	echo Building examples.
 
 	cc \
-		-o example \
+		-o examples/simple \
 		-Wall -Wextra \
 		$optimization_options \
 		-Iinclude \
-		example.c \
+		examples/simple.c \
+		libneurosdk.a
+
+	cc \
+		-o examples/tictactoe \
+		-Wall -Wextra \
+		$optimization_options \
+		-Iinclude \
+		examples/tictactoe.c \
 		libneurosdk.a
 fi

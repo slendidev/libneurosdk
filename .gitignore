@@ -10,8 +10,10 @@ compile_commands.json
 *.lib
 *.dylib
 .cache
-example
-example.*
+examples/simple.exe
+examples/simple
+examples/tictactoe.exe
+examples/tictactoe
 *.exp
 *.obj
 *.pdb
