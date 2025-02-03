@@ -1,0 +1,10 @@
+src/mongoose.c
+src/mongoose.h
+src/json.h
+compile_commands.json
+*.o
+*.so
+*.a
+*.dll
+*.lib
+.cache
