@@ -7,12 +7,19 @@ extern "C" {
 
 #include <stdbool.h>
 
+#if defined(__linux__) || defined(__APPLE__)
+#define NEUROSDK_EXPORT
+#else
+#define NEUROSDK_EXPORT __declspec(dllexport)
+#endif
+
 #define OUT
 
 typedef void *neurosdk_context_t;
 
 typedef enum neurosdk_error {
   NeuroSDK_None = 0,
+  NeuroSDK_Internal,
   NeuroSDK_Uninitialized,
   NeuroSDK_NoGameName,
   NeuroSDK_OutOfMemory,
@@ -51,6 +58,20 @@ typedef struct neurosdk_message_actions_unregister {
   int action_names_len;
 } neurosdk_message_actions_unregister_t;
 
+typedef struct neurosdk_message_actions_force {
+  char *state;
+  char *query;
+  bool ephemeral_context; // Set to anything but true or false to set it null.
+  char **action_names;
+  int action_names_len;
+} neurosdk_message_actions_force_t;
+
+typedef struct neurosdk_message_action_result {
+  char *id;
+  bool success;
+  char *message; // May be NULL.
+} neurosdk_message_action_result_t;
+
 typedef struct neurosdk_message_action {
   char *id;
   char *name;
@@ -64,6 +85,8 @@ typedef enum neurosdk_message_kind {
   NeuroSDK_Context,
   NeuroSDK_ActionsRegister,
   NeuroSDK_ActionsUnregister,
+  NeuroSDK_ActionsForce,
+  NeuroSDK_ActionResult,
   // Neuro to Game (S2C)
   NeuroSDK_Action,
 } neurosdk_message_kind_e;
@@ -76,6 +99,8 @@ typedef struct neurosdk_message {
     neurosdk_message_context_t context;
     neurosdk_message_actions_register_t actions_register;
     neurosdk_message_actions_unregister_t actions_unregister;
+    neurosdk_message_actions_force_t actions_force;
+    neurosdk_message_action_result_t action_result;
     // Neuro to Game (S2C)
     neurosdk_message_action_t action;
   } value;
@@ -87,16 +112,19 @@ typedef struct neurosdk_context_create_desc {
   int poll_ms;
 } neurosdk_context_create_desc_t;
 
-// This function hangs until it receives a connection.
-neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx, neurosdk_context_create_desc_t desc);
-neurosdk_error_e neurosdk_message_destroy(neurosdk_message_t *msg);
+NEUROSDK_EXPORT char const *neurosdk_version(void);
+NEUROSDK_EXPORT char const *neurosdk_git_hash(void);
 
-neurosdk_error_e neurosdk_context_destroy(neurosdk_context_t *ctx);
+NEUROSDK_EXPORT neurosdk_error_e neurosdk_message_destroy(neurosdk_message_t *msg);
+
+// This function hangs until it receives a connection.
+NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx, neurosdk_context_create_desc_t *desc);
+NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_destroy(neurosdk_context_t *ctx);
 // Requires the entries to be destroyed!
 // You cannot re-use messages unless doing an explicit memcpy().
-neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx, OUT neurosdk_message_t **messages, OUT int *count);
-neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message_t *msg);
-bool neurosdk_context_connected(neurosdk_context_t *ctx);
+NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx, OUT neurosdk_message_t **messages, OUT int *count);
+NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message_t *msg);
+NEUROSDK_EXPORT bool neurosdk_context_connected(neurosdk_context_t *ctx);
 
 #ifdef __cplusplus
 }

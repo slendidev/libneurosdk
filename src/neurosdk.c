@@ -16,10 +16,36 @@
 #include "json.h"
 #include "mongoose.h"
 
+#include "mongoose.c"
+
 #define ENVIRONMENT_VARIABLE_NAME "NEURO_SDK_WS_URL"
 #define MESSAGE_QUEUE_SIZE 10
 
-char *escape_string(const char *str) {
+#ifndef LIB_VERSION
+#error "LIB_VERSION is not defined!"
+#endif
+#ifndef LIB_BUILD_HASH
+#error "LIB_BUILD_HASH is not defined!"
+#endif
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+typedef struct context {
+  char const *game_name;
+  int poll_ms;
+
+  neurosdk_error_e conn_err;
+  bool connected;
+
+  neurosdk_message_t *message_queue;
+  int message_queue_size;
+  int message_queue_cap;
+
+  struct mg_mgr mgr;
+  struct mg_connection *conn;
+} context_t;
+
+static char *escape_string(const char *str) {
   if (!str)
     return NULL;
 
@@ -68,43 +94,50 @@ char *escape_string(const char *str) {
   return escaped;
 }
 
-int aprintf(char **strp, const char *fmt, ...) {
+#if defined(_MSC_VER)
+static int vasprintf(char **strp, const char *fmt, va_list ap) {
+  va_list ap_copy;
+  int formattedLength, actualLength;
+  size_t requiredSize;
+  *strp = NULL;
+  va_copy(ap_copy, ap);
+  formattedLength = _vscprintf(fmt, ap_copy);
+  va_end(ap_copy);
+  if (formattedLength < 0) {
+    return -1;
+  }
+  requiredSize = ((size_t)formattedLength) + 1;
+  *strp = (char *)malloc(requiredSize);
+  if (*strp == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+  actualLength = vsnprintf_s(*strp, requiredSize, requiredSize - 1, fmt, ap);
+  if (actualLength != formattedLength) {
+    free(*strp);
+    *strp = NULL;
+    errno = EOTHER;
+    return -1;
+  }
+  return formattedLength;
+}
+#endif
+
+static int aprintf(char **strp, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-
-  int size = vsnprintf(NULL, 0, fmt, args);
+  const int bytes = vasprintf(strp, fmt, args);
   va_end(args);
-
-  if (size < 0) {
-    return -1;
-  }
-
-  *strp = (char *)malloc(size + 1);
-  if (!*strp) {
-    return -1;
-  }
-
-  va_start(args, fmt);
-  int result = vsnprintf(*strp, size + 1, fmt, args);
-  va_end(args);
-
-  return result;
+  return bytes;
 }
 
-typedef struct context {
-  char const *game_name;
-  int poll_ms;
+char const *neurosdk_version(void) {
+  return STR(LIB_VERSION);
+}
 
-  struct mg_mgr mgr;
-  struct mg_connection *conn;
-
-  neurosdk_error_e conn_err;
-  bool connected;
-
-  neurosdk_message_t *message_queue;
-  int message_queue_size;
-  int message_queue_cap;
-} context_t;
+char const *neurosdk_git_hash(void) {
+  return STR(LIB_BUILD_HASH);
+}
 
 static neurosdk_error_e parse_s2c_json(neurosdk_message_t *msg, char const *json, int len) {
   neurosdk_error_e res = NeuroSDK_None;
@@ -221,8 +254,8 @@ cleanup:
   return res;
 }
 
-static void connection_fn_(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
-  context_t *ctx = (context_t *)fn_data;
+static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
+  context_t *ctx = (context_t *)c->fn_data;
 
   ctx->conn_err = NeuroSDK_None;
 
@@ -249,6 +282,7 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data, void 
     neurosdk_message_t msg;
     ctx->conn_err = parse_s2c_json(&msg, wm->data.buf, wm->data.len);
     if (!ctx->conn_err) {
+      puts("Adding to queue");
       if (ctx->message_queue_size == ctx->message_queue_cap) {
         ctx->conn_err = NeuroSDK_MessageQueueFull;
         return;
@@ -260,25 +294,26 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data, void 
 }
 
 neurosdk_error_e
-neurosdk_context_create(neurosdk_context_t *ctx, neurosdk_context_create_desc_t desc) {
+neurosdk_context_create(neurosdk_context_t *ctx, neurosdk_context_create_desc_t *desc) {
   neurosdk_error_e res = NeuroSDK_None;
 
-  context_t *context = (context_t *)calloc(1, sizeof(context_t));
+  context_t *context = malloc(sizeof(context_t));
   if (!context) {
     return NeuroSDK_OutOfMemory;
   }
+  memset(context, 0, sizeof(*context));
 
-  if (!desc.game_name || !strlen(desc.game_name)) {
+  if (!desc->game_name || !strlen(desc->game_name)) {
     return NeuroSDK_NoGameName;
   }
-  context->game_name = escape_string(desc.game_name);
-  context->poll_ms = desc.poll_ms;
+  context->game_name = escape_string(desc->game_name);
+  context->poll_ms = desc->poll_ms;
 
   context->message_queue_cap = MESSAGE_QUEUE_SIZE;
   context->message_queue_size = 0;
   context->message_queue = malloc(context->message_queue_cap * sizeof(neurosdk_message_t));
 
-  char *fetched_url = (char *)desc.url;
+  char *fetched_url = (char *)desc->url;
   if (!fetched_url) {
     fetched_url = getenv(ENVIRONMENT_VARIABLE_NAME);
   }
@@ -289,17 +324,20 @@ neurosdk_context_create(neurosdk_context_t *ctx, neurosdk_context_create_desc_t 
   }
 
   mg_mgr_init(&context->mgr);
-  context->conn = mg_ws_connect(&context->mgr, fetched_url, (mg_event_handler_t)(void *)connection_fn_, (void *)context, NULL);
+  context->conn = mg_ws_connect(&context->mgr, fetched_url, connection_fn_, (void *)context, NULL);
   if (!context->conn) {
     res = NeuroSDK_ConnectionError;
     goto cleanup2;
   }
 
-  // Wait for connection.
-  while (!context->connected)
-    mg_mgr_poll(&context->mgr, 1000);
+  for (int i = 0; i < 10 && !context->connected; i++) {
+    mg_mgr_poll(&context->mgr, 500);
+  }
+  if (!context->connected) {
+    return NeuroSDK_ConnectionError;
+  }
 
-  *ctx = (neurosdk_context_t)res;
+  (*ctx) = (neurosdk_context_t)context;
 
   return res;
 
@@ -332,7 +370,7 @@ neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx, OUT neurosdk_mes
   if (!ctx || !(*ctx)) {
     return NeuroSDK_Uninitialized;
   }
-  context_t *context = (context_t *)ctx;
+  context_t *context = (context_t *)(*ctx);
 
   context->conn_err = NeuroSDK_None;
 
@@ -350,13 +388,38 @@ neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx, OUT neurosdk_mes
   return NeuroSDK_None;
 }
 
+static void make_array(char **strings, int count, OUT char **json_str) {
+  int total = 2; // '[' and ']'
+  for (int i = 0; i < count; i++) {
+    total += 2 + strlen(strings[i]);
+    if (i < count - 1) {
+      total++; // comma
+    }
+  }
+  *json_str = malloc(total + 1);
+  if (!*json_str)
+    return;
+  char *dst = *json_str;
+  *dst++ = '[';
+  for (int i = 0; i < count; i++) {
+    *dst++ = '"';
+    strcpy(dst, strings[i]);
+    dst += strlen(strings[i]);
+    *dst++ = '"';
+    if (i < count - 1) {
+      *dst++ = ',';
+    }
+  }
+  *dst++ = ']';
+  *dst = '\0';
+}
+
 neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message_t *msg) {
   // FIXME: Make all allocations here use a dynamically growing arena, that gets freed on each call of this function.
-
   if (!ctx || !(*ctx)) {
     return NeuroSDK_Uninitialized;
   }
-  context_t *context = (context_t *)ctx;
+  context_t *context = (context_t *)(*ctx);
   if (!context->conn) {
     return NeuroSDK_Uninitialized;
   }
@@ -368,6 +431,10 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message
   } else if (msg->kind == NeuroSDK_Startup) {
     bytes = aprintf(&str, "{\"command\":\"startup\",\"game\":\"%s\"}", context->game_name);
   } else if (msg->kind == NeuroSDK_Context) {
+    if (msg->value.context.silent != true && msg->value.context.silent != false) {
+      msg->value.context.silent = false;
+    }
+
     char *escaped_str = escape_string(msg->value.context.message);
     bytes = aprintf(&str, "{\"command\":\"context\",\"game\":\"%s\",\"data\":\"{\"message\":\"%s\",\"silent\":%s}\"}", context->game_name, escaped_str, msg->value.context.silent ? "true" : "false");
     free(escaped_str);
@@ -409,7 +476,74 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message
 
     free(json_array);
   } else if (msg->kind == NeuroSDK_ActionsUnregister) {
+    char *json_str = NULL;
+    make_array(msg->value.actions_unregister.action_names, msg->value.actions_unregister.action_names_len, &json_str);
+    if (!json_str) {
+      return NeuroSDK_Internal;
+    }
+    bytes = aprintf(&str, "{\"command\":\"actions/unregister\",\"game\":\"%s\",\"data\":{\"action_names\":%s}}", context->game_name, json_str);
+    free(json_str);
+  } else if (msg->kind == NeuroSDK_ActionsForce) {
+    char *query = msg->value.actions_force.query;
+    if (!query) {
+      return NeuroSDK_InvalidMessage;
+    }
 
+    char **action_names = msg->value.actions_force.action_names;
+    if (!action_names || !msg->value.actions_force.action_names_len) {
+      return NeuroSDK_InvalidMessage;
+    }
+
+    bool ephemeral_null = false;
+    if (msg->value.actions_force.ephemeral_context != true && msg->value.actions_force.ephemeral_context != false) {
+      ephemeral_null = true;
+    }
+    char *state = msg->value.actions_force.state;
+    if (state) {
+      char *escaped = escape_string(state);
+      int bytes = aprintf(&state, "\"%s\"", escaped);
+      if (!bytes) {
+        // FIXME: Fix memory leaks
+        return NeuroSDK_OutOfMemory;
+      }
+      free(escaped);
+    } else {
+      state = strdup("null");
+    }
+
+    char *ephemeral_context_str = "null";
+    if (!ephemeral_null) {
+      ephemeral_context_str = msg->value.actions_force.ephemeral_context ? "true" : "false";
+    }
+
+    char *json_str = NULL;
+    make_array(msg->value.actions_force.action_names, msg->value.actions_force.action_names_len, &json_str);
+    if (!json_str) {
+      return NeuroSDK_Internal;
+    }
+
+    bytes = aprintf(&str, "{\"command\":\"actions/force\",\"game\":\"%s\",\"data\":{\"state\":%s,\"query\":\"%s\",\"ephemeral_context\":%s,\"action_names\":%s}}", context->game_name, state, query, ephemeral_context_str, json_str);
+
+    if (state) {
+      free(state);
+    }
+  } else if (msg->kind == NeuroSDK_ActionResult) {
+    if (!msg->value.action_result.id) {
+      return NeuroSDK_InvalidMessage;
+    }
+
+    if (msg->value.action_result.success != true && msg->value.action_result.success != false) {
+      msg->value.action_result.success = true;
+    }
+
+    char *message = strdup("null");
+    if (msg->value.action_result.message) {
+      message = escape_string(msg->value.action_result.message);
+    }
+
+    bytes = aprintf(&str, "{\"command\":\"action:result\",\"game\":%s,\"data\":{\"id\":\"%s\",\"success\":%s,\"message\":%s}}", context->game_name, msg->value.action_result.id, msg->value.action_result.success ? "true" : "false", message);
+
+    free(message);
   } else {
     return NeuroSDK_UnknownCommand;
   }
