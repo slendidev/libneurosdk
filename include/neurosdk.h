@@ -112,6 +112,8 @@ typedef struct neurosdk_context_create_desc {
 NEUROSDK_EXPORT char const *neurosdk_version(void);
 NEUROSDK_EXPORT char const *neurosdk_git_hash(void);
 
+NEUROSDK_EXPORT char const *neurosdk_error_string(neurosdk_error_e err);
+
 NEUROSDK_EXPORT neurosdk_error_e
 neurosdk_message_destroy(neurosdk_message_t *msg);
 

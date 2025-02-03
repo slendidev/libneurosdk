@@ -20,7 +20,7 @@ int main() {
 
 	neurosdk_error_e err = neurosdk_context_create(&ctx, &desc);
 	if (err != NeuroSDK_None) {
-		printf("Failed to create context: %d\n", err);
+		printf("Failed to create context: %s\n", neurosdk_error_string(err));
 		return 1;
 	}
 
@@ -29,7 +29,7 @@ int main() {
 	neurosdk_message_t startup_msg = {.kind = NeuroSDK_Startup};
 	err = neurosdk_context_send(&ctx, &startup_msg);
 	if (err != NeuroSDK_None) {
-		printf("Failed to send startup message: %d\n", err);
+		printf("Failed to send startup message: %s\n", neurosdk_error_string(err));
 		neurosdk_context_destroy(&ctx);
 		return 1;
 	}
@@ -45,7 +45,7 @@ int main() {
 
 	err = neurosdk_context_send(&ctx, &reg_msg);
 	if (err != NeuroSDK_None) {
-		printf("Failed to register action: %d\n", err);
+		printf("Failed to register action: %s\n", neurosdk_error_string(err));
 		neurosdk_context_destroy(&ctx);
 		return 1;
 	}
@@ -60,7 +60,7 @@ int main() {
 
 	err = neurosdk_context_send(&ctx, &force_msg);
 	if (err != NeuroSDK_None) {
-		printf("Failed to force action: %d\n", err);
+		printf("Failed to force action: %s\n", neurosdk_error_string(err));
 		neurosdk_context_destroy(&ctx);
 		return 1;
 	}
@@ -85,7 +85,7 @@ int main() {
 
 					err = neurosdk_context_send(&ctx, &res_msg);
 					if (err != NeuroSDK_None) {
-						printf("Failed to send preemptive action result: %d\n", err);
+						printf("Failed to send preemptive action result: %s\n", neurosdk_error_string(err));
 						neurosdk_context_destroy(&ctx);
 						return 1;
 					}

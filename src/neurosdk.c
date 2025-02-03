@@ -142,6 +142,41 @@ char const *neurosdk_git_hash(void) {
 	return STR(LIB_BUILD_HASH);
 }
 
+char const *neurosdk_error_string(neurosdk_error_e err) {
+	switch (err) {
+		case NeuroSDK_None:
+			return "None.";
+		case NeuroSDK_Internal:
+			return "An internal error occurred.";
+		case NeuroSDK_Uninitialized:
+			return "Component is not initialized.";
+		case NeuroSDK_NoGameName:
+			return "Game name is missing.";
+		case NeuroSDK_OutOfMemory:
+			return "Memory allocation failed.";
+		case NeuroSDK_NoURL:
+			return "No URL provided.";
+		case NeuroSDK_ConnectionError:
+			return "Failed to establish a connection.";
+		case NeuroSDK_MessageQueueFull:
+			return "Message queue is full.";
+		case NeuroSDK_ReceivedBinary:
+			return "Unexpected binary data received.";
+		case NeuroSDK_InvalidJSON:
+			return "Received malformed JSON.";
+		case NeuroSDK_UnknownCommand:
+			return "Unknown command received.";
+		case NeuroSDK_InvalidMessage:
+			return "Message format is invalid.";
+		case NeuroSDK_CommandNotAvailable:
+			return "The requested command is not available in this context.";
+		case NeuroSDK_SendFailed:
+			return "Failed to send message.";
+		default:
+			return "Unknown error code.";
+	}
+}
+
 static neurosdk_error_e parse_s2c_json(neurosdk_message_t *msg,
                                        char const *json,
                                        int len) {
