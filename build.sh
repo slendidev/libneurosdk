@@ -34,7 +34,7 @@ echo Building library.
 
 cc -c \
 	-o libneurosdk.o \
-	-Wall -Wextra \
+	-Wall -Wextra -fPIC \
 	$optimization_options \
 	"-DLIB_BUILD_HASH=$(git rev-parse HEAD)" \
 	"-DLIB_VERSION=$VERSION" \

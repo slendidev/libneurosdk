@@ -45,13 +45,20 @@ for /f "delims=" %%i in ('git rev-parse HEAD') do set GITHASH=%%i
 		/D LIB_VERSION=\"%VERSION%\" ^
 		src\neurosdk.c /Fo:libneurosdk.obj
 
+	echo	Building object file.
+	cl /std:c17 /c /W4 %OPTIM% /I include ^
+		/D LIB_BUILD_HASH=\"%GITHASH%\" ^
+		/D LIB_VERSION=\"%VERSION%\" ^
+		/D LIBNEUROSDK_EXPORTS ^
+		src\neurosdk.c /Fo:libneurosdk.obj
+
 	echo	Building shared library.
-	link /DLL /OUT:libneurosdk.dll libneurosdk.obj
+	link /DLL /OUT:libneurosdk.dll libneurosdk.obj /IMPLIB:libneurosdk.lib
 
 	echo	Building static library.
 	lib /OUT:libneurosdk_static.lib libneurosdk.obj
 
-	echo	Built libneurosdk.dll and libneurosdk_static.lib
+	echo	Built libneurosdk.dll, libneurosdk.lib, and libneurosdk_static.lib.
 
 	if "%example%"=="1" (
 		echo	Building examples.
