@@ -61,6 +61,20 @@ int main() {
 		return 1;
 	}
 
+	neurosdk_message_t context_msg;
+	context_msg.kind = NeuroSDK_MessageKind_Context;
+	context_msg.value.context = (neurosdk_message_context_t){
+	    .message =
+	        "You are player O in a game of TicTacToe. Each cell has a value, "
+	        "from 0 to 8. The board looks like this:\n"
+	        "012\n345\n678.",
+	    .silent = true,
+	};
+	if ((err = neurosdk_context_send(&ctx, &context_msg)) != NeuroSDK_None) {
+		printf("Failed to send context message: %s\n", neurosdk_error_string(err));
+		return 1;
+	}
+
 	neurosdk_message_t register_msg;
 	register_msg.kind = NeuroSDK_MessageKind_ActionsRegister;
 	neurosdk_action_t move_action = {
@@ -106,7 +120,10 @@ int main() {
 			// Force Neuro to make a move.
 			neurosdk_message_t force_msg;
 			force_msg.kind = NeuroSDK_MessageKind_ActionsForce;
-			force_msg.value.actions_force.state = NULL;
+			char board_str[9 + 4];
+			sprintf(board_str, "%.*s\n%.*s\n%.*s", 3, board, 3, board + 3, 3,
+			        board + 6);
+			force_msg.value.actions_force.state = board_str;
 			force_msg.value.actions_force.query =
 			    "Your move. Choose an empty cell index (0-8).";
 			force_msg.value.actions_force.ephemeral_context = false;

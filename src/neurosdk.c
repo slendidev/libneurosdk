@@ -683,7 +683,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			}
 			bytes = aprintf(
 			    &str,
-			    "{\"command\":\"context\",\"game\":\"%s\",\"data\":\"{\\\"message\\\":\\\"%s\\\",\\\"silent\\\":%s}\"}",
+			    "{\"command\":\"context\",\"game\":\"%s\",\"data\":{\"message\":\"%s\",\"silent\":%s}}",
 			    context->game_name, escaped_str,
 			    msg->value.context.silent ? "true" : "false");
 			free(escaped_str);
