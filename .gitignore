@@ -11,3 +11,7 @@ compile_commands.json
 *.dylib
 .cache
 example
+example.*
+*.exp
+*.obj
+*.pdb

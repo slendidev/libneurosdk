@@ -424,6 +424,10 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message
     return NeuroSDK_Uninitialized;
   }
 
+  if (!neurosdk_context_connected(ctx)) {
+    return NeuroSDK_ConnectionError;
+  }
+
   char *str = NULL;
   int bytes = 0;
   if (msg->kind == NeuroSDK_Action) {
@@ -550,6 +554,14 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message
 
   if (!str || !bytes) {
     return NeuroSDK_InvalidMessage;
+  }
+
+  printf("Sending neuro: %s (%d bytes)\n", str, bytes);
+
+  context->conn_err = NeuroSDK_None;
+  mg_mgr_poll(&context->mgr, 10);
+  if (context->conn_err) {
+    return context->conn_err;
   }
 
   bytes = mg_ws_send(context->conn, str, bytes, WEBSOCKET_OP_TEXT);

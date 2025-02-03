@@ -40,9 +40,6 @@ typedef struct neurosdk_action {
   char *json_schema;
 } neurosdk_action_t;
 
-typedef struct neurosdk_message_startup {
-} neurosdk_message_startup_t;
-
 typedef struct neurosdk_message_context {
   char *message;
   bool silent;
@@ -95,7 +92,6 @@ typedef struct neurosdk_message {
   neurosdk_message_kind_e kind;
   union {
     // Game to Neuro (C2S)
-    neurosdk_message_startup_t startup;
     neurosdk_message_context_t context;
     neurosdk_message_actions_register_t actions_register;
     neurosdk_message_actions_unregister_t actions_unregister;
