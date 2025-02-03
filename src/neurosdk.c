@@ -31,12 +31,11 @@
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-#define LOG_DEBUG(context, ...)                                   \
-	if (context->debug_prints &&      \
-	    aprintf(&context->logm, __VA_ARGS__)) {                     \
-		context->callback_log(NeuroSDK_Severity_Debug, context->logm, \
-		                      context->user_data);                    \
-		free(context->logm);                                          \
+#define LOG_DEBUG(context, ...)                                        \
+	if (context->debug_prints && aprintf(&context->logm, __VA_ARGS__)) { \
+		context->callback_log(NeuroSDK_Severity_Debug, context->logm,      \
+		                      context->user_data);                         \
+		free(context->logm);                                               \
 	}
 
 #define LOG_INFO(context, ...)                                              \
@@ -220,14 +219,14 @@ static int aprintf(char **strp, const char *fmt, ...) {
 	return bytes;
 }
 
-char const *neurosdk_version(void) {
+NEUROSDK_EXPORT char const *neurosdk_version(void) {
 	return STR(LIB_VERSION);
 }
-char const *neurosdk_git_hash(void) {
+NEUROSDK_EXPORT char const *neurosdk_git_hash(void) {
 	return STR(LIB_BUILD_HASH);
 }
 
-char const *neurosdk_error_string(neurosdk_error_e err) {
+NEUROSDK_EXPORT char const *neurosdk_error_string(neurosdk_error_e err) {
 	switch (err) {
 		case NeuroSDK_None:
 			return "None.";
@@ -343,8 +342,7 @@ static neurosdk_error_e parse_s2c_json(context_t *ctx,
 						id = strdup(str->string);
 					} else if (!strcmp(obj_root->name->string, "name")) {
 						if (obj_root->value->type != json_type_string) {
-							LOG_ERROR(ctx,
-							          "[parse_s2c_json] 'name' field must be a string.");
+							LOG_ERROR(ctx, "[parse_s2c_json] 'name' field must be a string.");
 							res = NeuroSDK_InvalidJSON;
 							goto parse_cleanup;
 						}
@@ -354,12 +352,12 @@ static neurosdk_error_e parse_s2c_json(context_t *ctx,
 						if (obj_root->value->type == json_type_null) {
 							data = NULL;
 						} else if (obj_root->value->type == json_type_string) {
-							json_string_t *str =
-							    (json_string_t *)obj_root->value->payload;
+							json_string_t *str = (json_string_t *)obj_root->value->payload;
 							data = strdup(str->string);
 						} else {
-							LOG_ERROR(ctx,
-							          "[parse_s2c_json] 'data' field must be a string or null.");
+							LOG_ERROR(
+							    ctx,
+							    "[parse_s2c_json] 'data' field must be a string or null.");
 							res = NeuroSDK_InvalidJSON;
 							goto parse_cleanup;
 						}
@@ -368,9 +366,9 @@ static neurosdk_error_e parse_s2c_json(context_t *ctx,
 				}
 
 				if (!id || !name) {
-					LOG_ERROR(
-					    ctx,
-					    "[parse_s2c_json] 'data' object for 'action' must contain 'id' and 'name'.");
+					LOG_ERROR(ctx,
+					          "[parse_s2c_json] 'data' object for 'action' must contain "
+					          "'id' and 'name'.");
 					res = NeuroSDK_InvalidJSON;
 					goto parse_cleanup;
 				}
@@ -430,20 +428,17 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 		for (size_t i = 0; i < wm->data.len; i++) {
 			if (!isprint((unsigned char)wm->data.buf[i]) &&
 			    !isspace((unsigned char)wm->data.buf[i])) {
-				LOG_ERROR(ctx,
-				          "Received binary (non-plaintext) data from server!");
+				LOG_ERROR(ctx, "Received binary (non-plaintext) data from server!");
 				ctx->conn_err = NeuroSDK_ReceivedBinary;
 				return;
 			}
 		}
 		neurosdk_message_t msg;
 		LOG_DEBUG(ctx, "Received message: %.*s", (int)wm->data.len, wm->data.buf);
-		ctx->conn_err =
-		    parse_s2c_json(ctx, &msg, wm->data.buf, (int)wm->data.len);
+		ctx->conn_err = parse_s2c_json(ctx, &msg, wm->data.buf, (int)wm->data.len);
 		if (!ctx->conn_err) {
 			if (ctx->message_queue_size == ctx->message_queue_cap) {
-				LOG_ERROR(ctx,
-				          "Message queue is full! (NeuroSDK_MessageQueueFull).");
+				LOG_ERROR(ctx, "Message queue is full! (NeuroSDK_MessageQueueFull).");
 				ctx->conn_err = NeuroSDK_MessageQueueFull;
 				return;
 			}
@@ -464,8 +459,9 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 	}
 }
 
-neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
-                                         neurosdk_context_create_desc_t *desc) {
+NEUROSDK_EXPORT neurosdk_error_e
+neurosdk_context_create(neurosdk_context_t *ctx,
+                        neurosdk_context_create_desc_t *desc) {
 	neurosdk_error_e res = NeuroSDK_None;
 	context_t *context = malloc(sizeof(context_t));
 	if (!context) {
@@ -553,7 +549,8 @@ cleanup:
 	return res;
 }
 
-neurosdk_error_e neurosdk_context_destroy(neurosdk_context_t *ctx) {
+NEUROSDK_EXPORT neurosdk_error_e
+neurosdk_context_destroy(neurosdk_context_t *ctx) {
 	if (!ctx || !(*ctx)) {
 		return NeuroSDK_Uninitialized;
 	}
@@ -573,9 +570,10 @@ neurosdk_error_e neurosdk_context_destroy(neurosdk_context_t *ctx) {
 	return NeuroSDK_None;
 }
 
-neurosdk_error_e neurosdk_context_poll(neurosdk_context_t *ctx,
-                                       OUT neurosdk_message_t **messages,
-                                       OUT int *count) {
+NEUROSDK_EXPORT neurosdk_error_e
+neurosdk_context_poll(neurosdk_context_t *ctx,
+                      OUT neurosdk_message_t **messages,
+                      OUT int *count) {
 	if (!ctx || !(*ctx)) {
 		return NeuroSDK_Uninitialized;
 	}
@@ -632,8 +630,8 @@ static void make_array(char **strings, int count, OUT char **json_str) {
 	*dst = '\0';
 }
 
-neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
-                                       neurosdk_message_t *msg) {
+NEUROSDK_EXPORT neurosdk_error_e
+neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message_t *msg) {
 	if (!ctx || !(*ctx)) {
 		return NeuroSDK_Uninitialized;
 	}
@@ -681,11 +679,11 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 				          "Out of memory while escaping 'message' for context.");
 				return NeuroSDK_OutOfMemory;
 			}
-			bytes = aprintf(
-			    &str,
-			    "{\"command\":\"context\",\"game\":\"%s\",\"data\":{\"message\":\"%s\",\"silent\":%s}}",
-			    context->game_name, escaped_str,
-			    msg->value.context.silent ? "true" : "false");
+			bytes = aprintf(&str,
+			                "{\"command\":\"context\",\"game\":\"%s\",\"data\":{"
+			                "\"message\":\"%s\",\"silent\":%s}}",
+			                context->game_name, escaped_str,
+			                msg->value.context.silent ? "true" : "false");
 			free(escaped_str);
 		} break;
 
@@ -705,12 +703,10 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 
 			int total_size = 0;
 			for (int i = 0; i < len; i++) {
-				neurosdk_action_t *action =
-				    &msg->value.actions_register.actions[i];
+				neurosdk_action_t *action = &msg->value.actions_register.actions[i];
 				if (!action->name) {
 					LOG_ERROR(context,
-					          "Action register: action->name is NULL at index %d.",
-					          i);
+					          "Action register: action->name is NULL at index %d.", i);
 					free(json_actions);
 					return NeuroSDK_InvalidMessage;
 				}
@@ -721,9 +717,8 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 					         i);
 				}
 				char *name_escaped = escape_string(action->name);
-				char *desc_escaped = escape_string(action->description
-				                                       ? action->description
-				                                       : "");
+				char *desc_escaped =
+				    escape_string(action->description ? action->description : "");
 				if (!name_escaped || !desc_escaped) {
 					LOG_ERROR(context, "Out of memory escaping action fields.");
 					free(name_escaped);
@@ -731,8 +726,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 					free(json_actions);
 					return NeuroSDK_OutOfMemory;
 				}
-				char *schema =
-				    action->json_schema ? action->json_schema : "{}";
+				char *schema = action->json_schema ? action->json_schema : "{}";
 
 				int part_bytes =
 				    aprintf(&json_actions[i],
@@ -757,8 +751,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			    total_size + (len - 1) + 2 + 1;  // +2 for '[]', +1 for null-term
 			char *actions_array = malloc((size_t)approx_size);
 			if (!actions_array) {
-				LOG_ERROR(context,
-				          "Out of memory building final actions array JSON.");
+				LOG_ERROR(context, "Out of memory building final actions array JSON.");
 				for (int i = 0; i < len; i++) {
 					free(json_actions[i]);
 				}
@@ -780,10 +773,10 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			*ptr = '\0';
 			free(json_actions);
 
-			bytes = aprintf(
-			    &str,
-			    "{\"command\":\"actions/register\",\"game\":\"%s\",\"data\":{\"actions\":%s}}",
-			    context->game_name, actions_array);
+			bytes = aprintf(&str,
+			                "{\"command\":\"actions/"
+			                "register\",\"game\":\"%s\",\"data\":{\"actions\":%s}}",
+			                context->game_name, actions_array);
 			free(actions_array);
 		} break;
 
@@ -803,7 +796,8 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			}
 			bytes = aprintf(
 			    &str,
-			    "{\"command\":\"actions/unregister\",\"game\":\"%s\",\"data\":{\"action_names\":%s}}",
+			    "{\"command\":\"actions/"
+			    "unregister\",\"game\":\"%s\",\"data\":{\"action_names\":%s}}",
 			    context->game_name, json_str);
 			free(json_str);
 		} break;
@@ -811,13 +805,11 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		case NeuroSDK_MessageKind_ActionsForce: {
 			char *query = msg->value.actions_force.query;
 			if (!query) {
-				LOG_ERROR(context,
-				          "actions/force: 'query' is required but is NULL.");
+				LOG_ERROR(context, "actions/force: 'query' is required but is NULL.");
 				return NeuroSDK_InvalidMessage;
 			}
 			char **action_names = msg->value.actions_force.action_names;
-			if (!action_names ||
-			    msg->value.actions_force.action_names_len <= 0) {
+			if (!action_names || msg->value.actions_force.action_names_len <= 0) {
 				LOG_ERROR(context,
 				          "actions/force: 'action_names' is required but is empty.");
 				return NeuroSDK_InvalidMessage;
@@ -847,8 +839,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			} else {
 				state = strdup("null");
 				if (!state) {
-					LOG_ERROR(context,
-					          "Out of memory setting default state to null.");
+					LOG_ERROR(context, "Out of memory setting default state to null.");
 					return NeuroSDK_OutOfMemory;
 				}
 			}
@@ -864,14 +855,17 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 			           &json_str);
 			if (!json_str) {
 				free(state);
-				LOG_ERROR(context,
-				          "Out of memory building action_names array in actions/force.");
+				LOG_ERROR(
+				    context,
+				    "Out of memory building action_names array in actions/force.");
 				return NeuroSDK_OutOfMemory;
 			}
 
 			bytes = aprintf(
 			    &str,
-			    "{\"command\":\"actions/force\",\"game\":\"%s\",\"data\":{\"state\":%s,\"query\":\"%s\",\"ephemeral_context\":%s,\"action_names\":%s}}",
+			    "{\"command\":\"actions/"
+			    "force\",\"game\":\"%s\",\"data\":{\"state\":%s,\"query\":\"%s\","
+			    "\"ephemeral_context\":%s,\"action_names\":%s}}",
 			    context->game_name, state, query, ephemeral_context_str, json_str);
 
 			free(json_str);
@@ -880,8 +874,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 
 		case NeuroSDK_MessageKind_ActionResult: {
 			if (!msg->value.action_result.id) {
-				LOG_ERROR(context,
-				          "action/result: 'id' is required but is NULL.");
+				LOG_ERROR(context, "action/result: 'id' is required but is NULL.");
 				return NeuroSDK_InvalidMessage;
 			}
 			if (msg->value.action_result.success != true &&
@@ -898,13 +891,11 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 				free(message);
 				char *tmp = escape_string(msg->value.action_result.message);
 				if (!tmp) {
-					LOG_ERROR(context,
-					          "Out of memory escaping 'action_result.message'.");
+					LOG_ERROR(context, "Out of memory escaping 'action_result.message'.");
 					return NeuroSDK_OutOfMemory;
 				}
 				if (aprintf(&message, "\"%s\"", tmp) < 0) {
-					LOG_ERROR(context,
-					          "Out of memory building 'action_result.message'.");
+					LOG_ERROR(context, "Out of memory building 'action_result.message'.");
 					free(tmp);
 					return NeuroSDK_OutOfMemory;
 				}
@@ -913,10 +904,10 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 
 			bytes =
 			    aprintf(&str,
-			            "{\"command\":\"action:result\",\"game\":\"%s\",\"data\":{\"id\":\"%s\",\"success\":%s,\"message\":%s}}",
+			            "{\"command\":\"action:result\",\"game\":\"%s\",\"data\":{"
+			            "\"id\":\"%s\",\"success\":%s,\"message\":%s}}",
 			            context->game_name, msg->value.action_result.id,
-			            msg->value.action_result.success ? "true" : "false",
-			            message);
+			            msg->value.action_result.success ? "true" : "false", message);
 			free(message);
 		} break;
 
@@ -953,14 +944,15 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 	return NeuroSDK_None;
 }
 
-bool neurosdk_context_connected(neurosdk_context_t *ctx) {
+NEUROSDK_EXPORT bool neurosdk_context_connected(neurosdk_context_t *ctx) {
 	if (!ctx || !(*ctx)) {
 		return false;
 	}
 	return ((context_t *)*ctx)->connected;
 }
 
-neurosdk_error_e neurosdk_message_destroy(neurosdk_message_t *msg) {
+NEUROSDK_EXPORT neurosdk_error_e
+neurosdk_message_destroy(neurosdk_message_t *msg) {
 	if (!msg) {
 		return NeuroSDK_Uninitialized;
 	}
