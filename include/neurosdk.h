@@ -84,16 +84,16 @@ typedef struct neurosdk_message_action {
 } neurosdk_message_action_t;
 
 typedef enum neurosdk_message_kind {
-	NeuroSDK_Unknown = 0,
+	NeuroSDK_MessageKind_Unknown = 0,
 	// Game to Neuro (C2S)
-	NeuroSDK_Startup,
-	NeuroSDK_Context,
-	NeuroSDK_ActionsRegister,
-	NeuroSDK_ActionsUnregister,
-	NeuroSDK_ActionsForce,
-	NeuroSDK_ActionResult,
+	NeuroSDK_MessageKind_Startup,
+	NeuroSDK_MessageKind_Context,
+	NeuroSDK_MessageKind_ActionsRegister,
+	NeuroSDK_MessageKind_ActionsUnregister,
+	NeuroSDK_MessageKind_ActionsForce,
+	NeuroSDK_MessageKind_ActionResult,
 	// Neuro to Game (S2C)
-	NeuroSDK_Action,
+	NeuroSDK_MessageKind_Action,
 } neurosdk_message_kind_e;
 
 typedef struct neurosdk_message {
@@ -110,15 +110,44 @@ typedef struct neurosdk_message {
 	} value;
 } neurosdk_message_t;
 
+////////////
+// Others //
+////////////
+
+typedef enum neurosdk_severity {
+	NeuroSDK_Severity_Debug,
+	NeuroSDK_Severity_Info,
+	NeuroSDK_Severity_Warn,
+	NeuroSDK_Severity_Error,
+} neurosdk_severity_e;
+
+typedef void (*neurosdk_callback_log_t)(neurosdk_severity_e severity,
+                                        char *message,
+                                        void *user_data);
+
 /////////////////
 // Descriptors //
 /////////////////
+
+typedef enum neurosdk_context_create_flags {
+	NeuroSDK_ContextCreateFlags_None = 0,
+	NeuroSDK_ContextCreateFlags_DebugPrints = (1 << 0),
+	NeuroSDK_ContextCreateFlags_ValidationLayers = (1 << 1),
+} neurosdk_context_create_flags_e;
+
+#define NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG  \
+	(NeuroSDK_ContextCreateFlags_DebugPrints | \
+	 NeuroSDK_ContextCreateFlags_ValidationLayers)
 
 typedef struct neurosdk_context_create_desc {
 	char const *url;  // If NULL, then the NEURO_SDK_WS_URL environment variable
 	                  // will be used.
 	char const *game_name;
 	int poll_ms;
+	void *user_data;
+
+	neurosdk_context_create_flags_e flags;
+	neurosdk_callback_log_t callback_log;
 } neurosdk_context_create_desc_t;
 
 ///////////////

@@ -31,9 +31,89 @@
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
+#define LOG_DEBUG(context, ...)                                   \
+	if (context->debug_prints && context->validation_layers &&      \
+	    aprintf(&context->logm, __VA_ARGS__)) {                     \
+		context->callback_log(NeuroSDK_Severity_Debug, context->logm, \
+		                      context->user_data);                    \
+		free(context->logm);                                          \
+	}
+
+#define LOG_INFO(context, ...)                                              \
+	if (context->validation_layers && aprintf(&context->logm, __VA_ARGS__)) { \
+		context->callback_log(NeuroSDK_Severity_Info, context->logm,            \
+		                      context->user_data);                              \
+		free(context->logm);                                                    \
+	}
+
+#define LOG_WARN(context, ...)                                              \
+	if (context->validation_layers && aprintf(&context->logm, __VA_ARGS__)) { \
+		context->callback_log(NeuroSDK_Severity_Warn, context->logm,            \
+		                      context->user_data);                              \
+		free(context->logm);                                                    \
+	}
+
+#define LOG_ERROR(context, ...)                                             \
+	if (context->validation_layers && aprintf(&context->logm, __VA_ARGS__)) { \
+		context->callback_log(NeuroSDK_Severity_Error, context->logm,           \
+		                      context->user_data);                              \
+		free(context->logm);                                                    \
+	}
+
+static void default_logger(neurosdk_severity_e severity,
+                           char *message,
+                           void *user_data) {
+#ifdef _WIN32
+	HANDLE h_console = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	CONSOLE_SCREEN_BUFFER_INFO console_info;
+	GetConsoleScreenBufferInfo(hConsole, &console_info);
+	WORD original_color = consoleInfo.wAttributes;
+#define RED \
+	SetConsoleTextAttribute(h_console, FOREGROUND_RED | FOREGROUND_INTENSITY)
+#define YELLOW             \
+	SetConsoleTextAttribute( \
+	    h_console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY)
+#define BLUE \
+	SetConsoleTextAttribute(h_console, FOREGROUND_BLUE | FOREGROUND_INTENSITY)
+#define GRAY SetConsoleTextAttribute(h_console, FOREGROUND_INTENSITY)
+#define RESET SetConsoleTextAttribute(h_console, original_color)
+#else
+#define RED printf("\033[31;1m")
+#define YELLOW printf("\033[33;1m")
+#define BLUE printf("\033[34;1m")
+#define GRAY printf("\033[90m")
+#define RESET printf("\033[0m")
+#endif
+	if (severity == NeuroSDK_Severity_Debug) {
+		GRAY;
+		printf("NeuroSDK Validation Layer: DEBUG: ");
+	} else if (severity == NeuroSDK_Severity_Info) {
+		BLUE;
+		printf("NeuroSDK Validation Layer: INFO: ");
+	} else if (severity == NeuroSDK_Severity_Warn) {
+		YELLOW;
+		printf("NeuroSDK Validation Layer: WARN: ");
+	} else if (severity == NeuroSDK_Severity_Error) {
+		RED;
+		printf("NeuroSDK Validation Layer: ERROR: ");
+	} else {
+		unreachable();
+	}
+
+	printf("%s\n", message);
+
+	RESET;
+}
+
 typedef struct context {
 	char const *game_name;
 	int poll_ms;
+
+	void *user_data;
+
+	neurosdk_callback_log_t callback_log;
+	char *logm;
 
 	neurosdk_error_e conn_err;
 	bool connected;
@@ -49,6 +129,9 @@ typedef struct context {
 	char **pending_messages;
 	int pending_messages_size;
 	int pending_messages_cap;
+
+	bool debug_prints : 1;
+	bool validation_layers : 1;
 } context_t;
 
 static char *escape_string(char const *str) {
@@ -319,7 +402,7 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 			}
 		}
 		neurosdk_message_t msg;
-		printf("Received message: %.*s", (int)wm->data.len, wm->data.buf);
+		LOG_DEBUG(ctx, "Received message: %.*s", (int)wm->data.len, wm->data.buf);
 		ctx->conn_err = parse_s2c_json(&msg, wm->data.buf, (int)wm->data.len);
 		if (!ctx->conn_err) {
 			if (ctx->message_queue_size == ctx->message_queue_cap) {
@@ -334,7 +417,7 @@ static void connection_fn_(struct mg_connection *c, int ev, void *ev_data) {
 		mtx_lock(&ctx->out_mtx);
 		for (int i = 0; i < ctx->pending_messages_size; i++) {
 			char *msg = ctx->pending_messages[i];
-			printf("Sending message: %s\n", msg);
+			LOG_DEBUG(ctx, "Sending message: %s", msg);
 			mg_ws_send(c, msg, strlen(msg), WEBSOCKET_OP_TEXT);
 			free(msg);
 		}
@@ -358,6 +441,16 @@ neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
 	}
 	context->game_name = escape_string(desc->game_name);
 	context->poll_ms = desc->poll_ms;
+
+	context->user_data = desc->user_data;
+	context->callback_log = desc->callback_log;
+	if (!context->callback_log) {
+		context->callback_log = default_logger;
+	}
+
+	context->debug_prints = desc->flags & NeuroSDK_ContextCreateFlags_DebugPrints;
+	context->validation_layers =
+	    desc->flags & NeuroSDK_ContextCreateFlags_ValidationLayers;
 
 	context->pending_messages_cap = MESSAGE_QUEUE_SIZE;
 	context->pending_messages_size = 0;
@@ -507,12 +600,12 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 	char *str = NULL;
 	int bytes = 0;
 
-	if (msg->kind == NeuroSDK_Action) {
+	if (msg->kind == NeuroSDK_MessageKind_Action) {
 		return NeuroSDK_CommandNotAvailable;
-	} else if (msg->kind == NeuroSDK_Startup) {
+	} else if (msg->kind == NeuroSDK_MessageKind_Startup) {
 		bytes = aprintf(&str, "{\"command\":\"startup\",\"game\":\"%s\"}",
 		                context->game_name);
-	} else if (msg->kind == NeuroSDK_Context) {
+	} else if (msg->kind == NeuroSDK_MessageKind_Context) {
 		if (msg->value.context.silent != true &&
 		    msg->value.context.silent != false) {
 			msg->value.context.silent = false;
@@ -524,7 +617,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		                context->game_name, escaped_str,
 		                msg->value.context.silent ? "true" : "false");
 		free(escaped_str);
-	} else if (msg->kind == NeuroSDK_ActionsRegister) {
+	} else if (msg->kind == NeuroSDK_MessageKind_ActionsRegister) {
 		char **json_actions =
 		    malloc(sizeof(char *) * msg->value.actions_register.actions_len);
 		int total_size = 0;
@@ -563,7 +656,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		                "register\",\"game\":\"%s\",\"data\":{\"actions\":[%s]}}",
 		                context->game_name, json_array);
 		free(json_array);
-	} else if (msg->kind == NeuroSDK_ActionsUnregister) {
+	} else if (msg->kind == NeuroSDK_MessageKind_ActionsUnregister) {
 		char *json_str = NULL;
 		make_array(msg->value.actions_unregister.action_names,
 		           msg->value.actions_unregister.action_names_len, &json_str);
@@ -576,7 +669,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		            "unregister\",\"game\":\"%s\",\"data\":{\"action_names\":%s}}",
 		            context->game_name, json_str);
 		free(json_str);
-	} else if (msg->kind == NeuroSDK_ActionsForce) {
+	} else if (msg->kind == NeuroSDK_MessageKind_ActionsForce) {
 		char *query = msg->value.actions_force.query;
 		if (!query) {
 			return NeuroSDK_InvalidMessage;
@@ -628,7 +721,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 
 		free(json_str);
 		free(state);
-	} else if (msg->kind == NeuroSDK_ActionResult) {
+	} else if (msg->kind == NeuroSDK_MessageKind_ActionResult) {
 		if (!msg->value.action_result.id) {
 			return NeuroSDK_InvalidMessage;
 		}
@@ -661,7 +754,7 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		return NeuroSDK_InvalidMessage;
 	}
 
-	printf("Queueing message for send: %s (%d bytes)\n", str, bytes);
+	LOG_DEBUG(context, "Queueing message for send: %s (%d bytes)", str, bytes);
 
 	mtx_lock(&context->out_mtx);
 	if (context->pending_messages_size + 1 < context->pending_messages_cap) {
