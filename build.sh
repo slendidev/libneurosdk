@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION="v0.1.0"
+VERSION="v0.1.1"
 
 release=0
 example=0
