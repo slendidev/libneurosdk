@@ -35,9 +35,10 @@ int main() {
 	}
 	printf("Sent startup message.\n");
 
-	neurosdk_action_t action = {.name = "test_action",
-	                            .description = "A simple test action",
+	neurosdk_action_t action = {.name = "choose_name",
+	                            .description = "Pick a username",
 	                            .json_schema = "{}"};
+
 	neurosdk_message_t reg_msg = {.kind = NeuroSDK_ActionsRegister};
 	reg_msg.value.actions_register.actions = &action;
 	reg_msg.value.actions_register.actions_len = 1;
@@ -52,9 +53,9 @@ int main() {
 
 	neurosdk_message_t force_msg = {.kind = NeuroSDK_ActionsForce};
 	force_msg.value.actions_force.state = "Simulation running";
-	force_msg.value.actions_force.query = "Please execute test_action";
+	force_msg.value.actions_force.query = "Please execute choose_name";
 	force_msg.value.actions_force.ephemeral_context = false;
-	force_msg.value.actions_force.action_names = (char *[]){"test_action"};
+	force_msg.value.actions_force.action_names = (char *[]){"choose_name"};
 	force_msg.value.actions_force.action_names_len = 1;
 
 	err = neurosdk_context_send(&ctx, &force_msg);
@@ -63,7 +64,7 @@ int main() {
 		neurosdk_context_destroy(&ctx);
 		return 1;
 	}
-	printf("Forced action execution.\n");
+	printf("Requested action execution.\n");
 
 	while (neurosdk_context_connected(&ctx)) {
 		neurosdk_message_t *messages = NULL;
@@ -73,20 +74,22 @@ int main() {
 		if (err == NeuroSDK_None && count > 0) {
 			for (int i = 0; i < count; i++) {
 				if (messages[i].kind == NeuroSDK_Action) {
-					printf("Received forced action request: %s\n",
-					       messages[i].value.action.name);
+					printf("- ID: %s\n", messages[i].value.action.id);
+					printf("- Name: %s\n", messages[i].value.action.name);
+					printf("- Data: %s\n", messages[i].value.action.data);
 
 					neurosdk_message_t res_msg = {.kind = NeuroSDK_ActionResult};
-					res_msg.value.action_result.id = messages[i].value.action.id;
+					res_msg.value.action_result.id = "choose_name";
 					res_msg.value.action_result.success = true;
 					res_msg.value.action_result.message = "Action executed successfully";
 
 					err = neurosdk_context_send(&ctx, &res_msg);
 					if (err != NeuroSDK_None) {
-						printf("Failed to send action result: %d\n", err);
-					} else {
-						printf("Sent action result.\n");
+						printf("Failed to send preemptive action result: %d\n", err);
+						neurosdk_context_destroy(&ctx);
+						return 1;
 					}
+					printf("Sent preemptive action result.\n");
 				}
 			}
 

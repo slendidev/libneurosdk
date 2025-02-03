@@ -340,7 +340,7 @@ neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
 	}
 
 	mg_mgr_init(&context->mgr);
-	mg_log_set(MG_LL_DEBUG);
+	mg_log_set(MG_LL_NONE);
 	mg_wakeup_init(&context->mgr);
 
 	if (mtx_init(&context->out_mtx, mtx_plain) != thrd_success) {
@@ -356,7 +356,7 @@ neurosdk_error_e neurosdk_context_create(neurosdk_context_t *ctx,
 	}
 
 	for (int i = 0; i < 10 && !context->connected; i++) {
-		mg_mgr_poll(&context->mgr, 1500);
+		mg_mgr_poll(&context->mgr, 300);
 	}
 	if (!context->connected) {
 		res = NeuroSDK_ConnectionError;
@@ -593,15 +593,17 @@ neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
 		char *message = strdup("null");
 		if (msg->value.action_result.message) {
 			free(message);
-			message = escape_string(msg->value.action_result.message);
+			char *tmp = escape_string(msg->value.action_result.message);
+			aprintf(&message, "\"%s\"", tmp);
+			free(tmp);
 		}
 
-		bytes =
-		    aprintf(&str,
-		            "{\"command\":\"action:result\",\"game\":%s,\"data\":{\"id\":"
-		            "\"%s\",\"success\":%s,\"message\":%s}}",
-		            context->game_name, msg->value.action_result.id,
-		            msg->value.action_result.success ? "true" : "false", message);
+		bytes = aprintf(
+		    &str,
+		    "{\"command\":\"action:result\",\"game\":\"%s\",\"data\":{\"id\":"
+		    "\"%s\",\"success\":%s,\"message\":%s}}",
+		    context->game_name, msg->value.action_result.id,
+		    msg->value.action_result.success ? "true" : "false", message);
 
 		free(message);
 	} else {
