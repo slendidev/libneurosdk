@@ -15,6 +15,10 @@ extern "C" {
 
 #define OUT
 
+////////////////////////////////
+// Handles and error handling //
+////////////////////////////////
+
 typedef void *neurosdk_context_t;
 
 typedef enum neurosdk_error {
@@ -33,6 +37,10 @@ typedef enum neurosdk_error {
 	NeuroSDK_CommandNotAvailable,
 	NeuroSDK_SendFailed,
 } neurosdk_error_e;
+
+//////////////
+// Messages //
+//////////////
 
 typedef struct neurosdk_action {
 	char *name;
@@ -58,7 +66,7 @@ typedef struct neurosdk_message_actions_unregister {
 typedef struct neurosdk_message_actions_force {
 	char *state;
 	char *query;
-	bool ephemeral_context;  // Set to anything but true or false to set it null.
+	bool ephemeral_context;  // Set to anything but true or false to set it NULL.
 	char **action_names;
 	int action_names_len;
 } neurosdk_message_actions_force_t;
@@ -102,6 +110,10 @@ typedef struct neurosdk_message {
 	} value;
 } neurosdk_message_t;
 
+/////////////////
+// Descriptors //
+/////////////////
+
 typedef struct neurosdk_context_create_desc {
 	char const *url;  // If NULL, then the NEURO_SDK_WS_URL environment variable
 	                  // will be used.
@@ -109,28 +121,45 @@ typedef struct neurosdk_context_create_desc {
 	int poll_ms;
 } neurosdk_context_create_desc_t;
 
+///////////////
+// Functions //
+///////////////
+
+// Get the version of the currently loaded library.
 NEUROSDK_EXPORT char const *neurosdk_version(void);
+
+// Get the checked out git commit hash of the currently loaded library.
 NEUROSDK_EXPORT char const *neurosdk_git_hash(void);
 
+// Get an error message from error enum.
 NEUROSDK_EXPORT char const *neurosdk_error_string(neurosdk_error_e err);
 
+// Free up resources for a message (Neuro to Game).
 NEUROSDK_EXPORT neurosdk_error_e
 neurosdk_message_destroy(neurosdk_message_t *msg);
 
-// This function hangs until it receives a connection.
+// Create a new context. This function hangs until it receives a connection.
 NEUROSDK_EXPORT neurosdk_error_e
 neurosdk_context_create(neurosdk_context_t *ctx,
                         neurosdk_context_create_desc_t *desc);
+
+// Free up resources of a context.
 NEUROSDK_EXPORT neurosdk_error_e
 neurosdk_context_destroy(neurosdk_context_t *ctx);
-// Requires the entries to be destroyed!
+
+// Poll any messages received on the websocket and parse them.
+// Requires the entries to be destroyed! (But not the vector!)
 // You cannot re-use messages unless doing an explicit memcpy().
 NEUROSDK_EXPORT neurosdk_error_e
 neurosdk_context_poll(neurosdk_context_t *ctx,
                       OUT neurosdk_message_t **messages,
                       OUT int *count);
+
+// Send a message to Neuro.
 NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
                                                        neurosdk_message_t *msg);
+
+// Check if you are still connected to Neuro.
 NEUROSDK_EXPORT bool neurosdk_context_connected(neurosdk_context_t *ctx);
 
 #ifdef __cplusplus
