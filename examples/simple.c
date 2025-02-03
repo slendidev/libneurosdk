@@ -16,7 +16,11 @@
 int main() {
 	neurosdk_context_t ctx;
 	neurosdk_context_create_desc_t desc = {
-	    .url = "ws://localhost:8000", .game_name = GAME_NAME, .poll_ms = 100};
+	    .url = "ws://localhost:8000",
+	    .game_name = GAME_NAME,
+	    .poll_ms = 100,
+	    .callback_log = NULL,
+	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG};
 
 	neurosdk_error_e err = neurosdk_context_create(&ctx, &desc);
 	if (err != NeuroSDK_None) {
@@ -30,7 +34,7 @@ int main() {
 	                            .description = "Pick a username",
 	                            .json_schema = "{}"};
 
-	neurosdk_message_t reg_msg = {.kind = NeuroSDK_ActionsRegister};
+	neurosdk_message_t reg_msg = {.kind = NeuroSDK_MessageKind_ActionsRegister};
 	reg_msg.value.actions_register.actions = &action;
 	reg_msg.value.actions_register.actions_len = 1;
 
@@ -42,7 +46,7 @@ int main() {
 	}
 	printf("Registered action.\n");
 
-	neurosdk_message_t force_msg = {.kind = NeuroSDK_ActionsForce};
+	neurosdk_message_t force_msg = {.kind = NeuroSDK_MessageKind_ActionsForce};
 	force_msg.value.actions_force.state = "Simulation running";
 	force_msg.value.actions_force.query = "Please execute choose_name";
 	force_msg.value.actions_force.ephemeral_context = false;
@@ -64,12 +68,13 @@ int main() {
 		err = neurosdk_context_poll(&ctx, &messages, &count);
 		if (err == NeuroSDK_None && count > 0) {
 			for (int i = 0; i < count; i++) {
-				if (messages[i].kind == NeuroSDK_Action) {
+				if (messages[i].kind == NeuroSDK_MessageKind_Action) {
 					printf("- ID: %s\n", messages[i].value.action.id);
 					printf("- Name: %s\n", messages[i].value.action.name);
 					printf("- Data: %s\n", messages[i].value.action.data);
 
-					neurosdk_message_t res_msg = {.kind = NeuroSDK_ActionResult};
+					neurosdk_message_t res_msg = {.kind =
+					                                  NeuroSDK_MessageKind_ActionResult};
 					res_msg.value.action_result.id = "choose_name";
 					res_msg.value.action_result.success = true;
 					res_msg.value.action_result.message = "Action executed successfully";

@@ -42,7 +42,11 @@ bool board_full(char board[9]) {
 int main() {
 	neurosdk_context_t ctx;
 	neurosdk_context_create_desc_t desc = {
-	    .url = NULL, .game_name = "TicTacToe", .poll_ms = 1000};
+	    .url = NULL,
+	    .game_name = "TicTacToe",
+	    .poll_ms = 1000,
+	    .callback_log = NULL,
+	    .flags = NEUROSDK_CONTEXT_CREATE_FLAGS_DEBUG};
 
 	neurosdk_error_e err;
 	if ((err = neurosdk_context_create(&ctx, &desc)) != NeuroSDK_None) {
@@ -51,14 +55,14 @@ int main() {
 	}
 
 	neurosdk_message_t startup_msg;
-	startup_msg.kind = NeuroSDK_Startup;
+	startup_msg.kind = NeuroSDK_MessageKind_Startup;
 	if ((err = neurosdk_context_send(&ctx, &startup_msg)) != NeuroSDK_None) {
 		printf("Failed to send startup message: %s\n", neurosdk_error_string(err));
 		return 1;
 	}
 
 	neurosdk_message_t register_msg;
-	register_msg.kind = NeuroSDK_ActionsRegister;
+	register_msg.kind = NeuroSDK_MessageKind_ActionsRegister;
 	neurosdk_action_t move_action = {
 	    .name = "move",
 	    .description = "Your move. Choose an empty cell index (0-8).",
@@ -101,7 +105,7 @@ int main() {
 
 			// Force Neuro to make a move.
 			neurosdk_message_t force_msg;
-			force_msg.kind = NeuroSDK_ActionsForce;
+			force_msg.kind = NeuroSDK_MessageKind_ActionsForce;
 			force_msg.value.actions_force.state = NULL;
 			force_msg.value.actions_force.query =
 			    "Your move. Choose an empty cell index (0-8).";
@@ -121,13 +125,13 @@ int main() {
 					break;
 				}
 				for (int i = 0; i < count; i++) {
-					if (messages[i].kind == NeuroSDK_Action) {
+					if (messages[i].kind == NeuroSDK_MessageKind_Action) {
 						char *data_str = messages[i].value.action.data;
 						int neuro_move = -1;
 						if (data_str != NULL)
 							neuro_move = atoi(data_str);
 						neurosdk_message_t action_result;
-						action_result.kind = NeuroSDK_ActionResult;
+						action_result.kind = NeuroSDK_MessageKind_ActionResult;
 						action_result.value.action_result.id = messages[i].value.action.id;
 						if (neuro_move < 0 || neuro_move > 8 || board[neuro_move] != ' ') {
 							action_result.value.action_result.success = false;
