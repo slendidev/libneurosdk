@@ -26,6 +26,11 @@ set VERSION=v0.1.1
 	move	/Y mongoose.c src\
 	move	/Y mongoose.h src\
 
+	curl  -LO https://raw.githubusercontent.com/tinycthread/tinycthread/refs/heads/master/source/tinycthread.c
+	curl  -LO https://raw.githubusercontent.com/tinycthread/tinycthread/refs/heads/master/source/tinycthread.h
+	move	/Y tinycthread.c src\
+	move	/Y tinycthread.h src\
+
 	echo	Fetching JSON library.
 	curl	-LO https://raw.githubusercontent.com/sheredom/json.h/refs/heads/master/json.h
 	move	/Y json.h src\

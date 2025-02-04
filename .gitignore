@@ -1,6 +1,8 @@
 .DS_Store
 src/mongoose.c
 src/mongoose.h
+src/tinycthread.c
+src/tinycthread.h
 src/json.h
 compile_commands.json
 *.o
@@ -17,3 +19,4 @@ examples/tictactoe
 *.exp
 *.obj
 *.pdb
+*/*.dSYM
