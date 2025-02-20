@@ -64,11 +64,19 @@ jobs:
   build-windows:
     name: Build on Windows
     runs-on: windows-latest
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - amd64_x86
+          - amd64_arm64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
 
       - name: Install dependencies
         run: choco install -y git curl
@@ -84,13 +92,13 @@ jobs:
           move libneurosdk.lib artifacts\
           move libneurosdk_static.lib artifacts\
           copy include\neurosdk.h artifacts\
-          tar -czvf libneurosdk-windows.tar.gz -C artifacts .
+          tar -czvf libneurosdk-windows-${{ matrix.arch }}.tar.gz -C artifacts .
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libneurosdk-windows
-          path: libneurosdk-windows.tar.gz
+          name: libneurosdk-windows-${{ matrix.arch }}
+          path: libneurosdk-windows-${{ matrix.arch }}.tar.gz
 
   release:
     name: Create Release
@@ -121,4 +129,6 @@ jobs:
           files: |
             libneurosdk-linux.tar.gz
             libneurosdk-macos.tar.gz
-            libneurosdk-windows.tar.gz
+            libneurosdk-windows-amd64.tar.gz
+            libneurosdk-windows-amd64_x86.tar.gz
+            libneurosdk-windows-arm64.tar.gz
