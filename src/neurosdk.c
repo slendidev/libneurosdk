@@ -513,8 +513,11 @@ NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_create(
     goto cleanup2;
   }
 
+  struct mg_str host = mg_url_host(fetched_url);
+  unsigned short port = mg_url_port(fetched_url);
   context->conn = mg_ws_connect(&context->mgr, fetched_url, connection_fn_,
-                                (void *)context, NULL);
+    (void *)context, "Host: %.*s:%u\r\n", (int)host.len, host.buf, port);
+
   if (!context->conn) {
     res = NeuroSDK_ConnectionError;
     goto cleanup3;
