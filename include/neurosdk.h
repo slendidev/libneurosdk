@@ -52,6 +52,14 @@ typedef enum neurosdk_severity {
 	NeuroSDK_Severity_Error
 } neurosdk_severity_e;
 
+// Force Priority Levels
+typedef enum neurosdk_priority {
+	NeuroSDK_Priority_Low,
+	NeuroSDK_Priority_Medium,
+	NeuroSDK_Priority_High,
+	NeuroSDK_Priority_Critical,
+} neurosdk_priority_e;
+
 // Context Creation Flags
 typedef enum neurosdk_context_create_flags {
 	NeuroSDK_ContextCreateFlags_None = 0,
@@ -118,6 +126,7 @@ typedef struct neurosdk_message_actions_force {
 	bool ephemeral_context;
 	char **action_names;
 	int action_names_len;
+	neurosdk_priority_e priority;
 } neurosdk_message_actions_force_t;
 
 // Action Result
