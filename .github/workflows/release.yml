@@ -35,33 +35,33 @@ jobs:
           name: libneurosdk-linux
           path: libneurosdk-linux.tar.gz
 
-  build-macos:
-    name: Build on macOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  # build-macos:
+  #   name: Build on macOS
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Install Xcode Command Line Tools
-        run: xcode-select --install || true
+  #     - name: Install Xcode Command Line Tools
+  #       run: xcode-select --install || true
 
-      - name: Build the library
-        run: ./build.sh -release
+  #     - name: Build the library
+  #       run: ./build.sh -release
 
-      - name: Package artifacts
-        run: |
-          ls
-          mkdir artifacts
-          mv libneurosdk.a libneurosdk.dylib artifacts/
-          cp include/neurosdk.h artifacts/
-          cp LICENSE artifacts/
-          tar -czvf libneurosdk-macos.tar.gz -C artifacts .
+  #     - name: Package artifacts
+  #       run: |
+  #         ls
+  #         mkdir artifacts
+  #         mv libneurosdk.a libneurosdk.dylib artifacts/
+  #         cp include/neurosdk.h artifacts/
+  #         cp LICENSE artifacts/
+  #         tar -czvf libneurosdk-macos.tar.gz -C artifacts .
 
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: libneurosdk-macos
-          path: libneurosdk-macos.tar.gz
+  #     - name: Upload macOS artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: libneurosdk-macos
+  #         path: libneurosdk-macos.tar.gz
 
   build-windows:
     name: Build on Windows
