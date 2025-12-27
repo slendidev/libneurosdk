@@ -21,8 +21,8 @@ set example=0
 set VERSION=v0.2.0
 
 	echo	Fetching mongoose.
-	curl	-LO https://raw.githubusercontent.com/cesanta/mongoose/refs/heads/master/mongoose.c
-	curl	-LO https://raw.githubusercontent.com/cesanta/mongoose/refs/heads/master/mongoose.h
+	curl	-LO https://raw.githubusercontent.com/cesanta/mongoose/refs/tags/7.20/mongoose.c
+	curl	-LO https://raw.githubusercontent.com/cesanta/mongoose/refs/tags/7.20/mongoose.h
 	move	/Y mongoose.c src\
 	move	/Y mongoose.h src\
 

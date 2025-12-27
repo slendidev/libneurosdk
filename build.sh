@@ -16,8 +16,8 @@ for arg in "$@"; do
 done
 
 echo Fetching mongoose.
-curl -LO https://raw.githubusercontent.com/cesanta/mongoose/refs/heads/master/mongoose.c
-curl -LO https://raw.githubusercontent.com/cesanta/mongoose/refs/heads/master/mongoose.h
+curl -LO https://raw.githubusercontent.com/cesanta/mongoose/refs/tags/7.20/mongoose.c
+curl -LO https://raw.githubusercontent.com/cesanta/mongoose/refs/tags/7.20/mongoose.h
 mv -v mongoose.c src/
 mv -v mongoose.h src/
 
