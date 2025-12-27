@@ -18,7 +18,7 @@ set example=0
 	goto parse_args
 :after_args
 
-set VERSION=v0.1.1
+set VERSION=v0.2.0
 
 	echo	Fetching mongoose.
 	curl	-LO https://raw.githubusercontent.com/cesanta/mongoose/refs/heads/master/mongoose.c
