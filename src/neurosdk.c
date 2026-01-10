@@ -521,9 +521,8 @@ neurosdk_context_create(neurosdk_context_t *ctx,
 
 	struct mg_str host = mg_url_host(fetched_url);
 	unsigned short port = mg_url_port(fetched_url);
-	context->conn =
-	    mg_ws_connect(&context->mgr, fetched_url, connection_fn_, (void *)context,
-	                  "Host: %.*s:%u\r\n", (int)host.len, host.buf, port);
+	context->conn = mg_ws_connect(&context->mgr, fetched_url, connection_fn_,
+	                              (void *)context, NULL);
 
 	if (!context->conn) {
 		res = NeuroSDK_ConnectionError;
