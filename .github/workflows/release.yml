@@ -3,8 +3,11 @@ name: Release Build
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "**"
     tags:
       - "v*"
+  pull_request:
 
 jobs:
   build-linux:
@@ -15,22 +18,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt update && sudo apt install -y curl build-essential
+        run: sudo apt update && sudo apt install -y cmake ninja-build
 
       - name: Build the library
-        run: ./build.sh -release
+        run: |
+          cmake -S . -B build-shared -G Ninja -DNEURO_BUILD_STATIC=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-shared
+          cmake -S . -B build-static -G Ninja -DNEURO_BUILD_STATIC=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-static
 
       - name: Package artifacts
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           ls
           mkdir artifacts
-          mv libneurosdk.a libneurosdk.so artifacts/
+          cp build-shared/liblibneurosdk.so artifacts/
+          cp build-static/liblibneurosdk.a artifacts/
           cp include/neurosdk.h artifacts/
           cp LICENSE artifacts/
           tar -czvf libneurosdk-linux.tar.gz -C artifacts .
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: libneurosdk-linux
           path: libneurosdk-linux.tar.gz
@@ -53,24 +63,30 @@ jobs:
           arch: ${{ matrix.arch }}
 
       - name: Install dependencies
-        run: choco install -y curl
+        run: choco install -y cmake ninja
 
       - name: Build the library
-        run: .\build.bat -release
+        run: |
+          cmake -S . -B build-shared -G Ninja -DNEURO_BUILD_STATIC=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-shared
+          cmake -S . -B build-static -G Ninja -DNEURO_BUILD_STATIC=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-static
 
       - name: Package artifacts
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           dir
           mkdir artifacts
-          move libneurosdk.dll artifacts\
-          move libneurosdk.lib artifacts\
-          move libneurosdk_static.lib artifacts\
+          copy build-shared\liblibneurosdk.dll artifacts\libneurosdk.dll
+          copy build-shared\liblibneurosdk.lib artifacts\libneurosdk.lib
+          copy build-static\liblibneurosdk.lib artifacts\libneurosdk_static.lib
           copy include\neurosdk.h artifacts\
           copy LICENSE artifacts\
           tar -czvf libneurosdk-windows-${{ matrix.arch }}.tar.gz -C artifacts .
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: libneurosdk-windows-${{ matrix.arch }}
           path: libneurosdk-windows-${{ matrix.arch }}.tar.gz
