@@ -7,6 +7,7 @@
 
 #include "tinycthread.h"
 
+#ifndef unreachable
 #if defined(__GNUC__)
 #define unreachable() (__builtin_unreachable())
 #elif defined(_MSC_VER)
@@ -15,9 +16,10 @@
 [[noreturn]] inline void unreachable_impl() { }
 #define unreachable() (unreachable_impl())
 #endif
+#endif
 
-#include "json.h"
-#include "mongoose.h"
+#include <json.h>
+#include <mongoose.h>
 
 #define ENVIRONMENT_VARIABLE_NAME "NEURO_SDK_WS_URL"
 #define MESSAGE_QUEUE_SIZE 10

@@ -21,3 +21,5 @@ examples/tictactoe
 *.pdb
 */*.dSYM
 .direnv
+[Bb]uild*
+result
