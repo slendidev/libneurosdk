@@ -2,13 +2,6 @@
 
 C SDK for interacting with the Neuro API.
 
-## Building
-
-On Windows you just simply run `build -release -example`, on macOS and Linux
-you run `./build.sh -release -example`. This will create both static and shared
-libraries for use in your application. The only header file you need is
-`neurosdk.h`.
-
 ## Documentation
 
 Please check the header file.
