@@ -32,8 +32,8 @@ jobs:
         run: |
           ls
           mkdir artifacts
-          cp build-shared/liblibneurosdk.so artifacts/
-          cp build-static/liblibneurosdk.a artifacts/
+          cp build-shared/libneurosdk.so artifacts/
+          cp build-static/libneurosdk.a artifacts/
           cp include/neurosdk.h artifacts/
           cp LICENSE artifacts/
           tar -czvf libneurosdk-linux.tar.gz -C artifacts .
@@ -77,9 +77,9 @@ jobs:
         run: |
           dir
           mkdir artifacts
-          copy build-shared\liblibneurosdk.dll artifacts\libneurosdk.dll
-          copy build-shared\liblibneurosdk.lib artifacts\libneurosdk.lib
-          copy build-static\liblibneurosdk.lib artifacts\libneurosdk_static.lib
+          copy build-shared\libneurosdk.dll artifacts\libneurosdk.dll
+          copy build-shared\libneurosdk.lib artifacts\libneurosdk.lib
+          copy build-static\libneurosdk.lib artifacts\libneurosdk_static.lib
           copy include\neurosdk.h artifacts\
           copy LICENSE artifacts\
           tar -czvf libneurosdk-windows-${{ matrix.arch }}.tar.gz -C artifacts .
