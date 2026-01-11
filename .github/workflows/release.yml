@@ -28,7 +28,6 @@ jobs:
           cmake --build build-static
 
       - name: Package artifacts
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           ls
           mkdir artifacts
@@ -73,13 +72,12 @@ jobs:
           cmake --build build-static
 
       - name: Package artifacts
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           dir
           mkdir artifacts
-          copy build-shared\libneurosdk.dll artifacts\libneurosdk.dll
-          copy build-shared\libneurosdk.lib artifacts\libneurosdk.lib
-          copy build-static\libneurosdk.lib artifacts\libneurosdk_static.lib
+          copy build-shared\neurosdk.dll artifacts\libneurosdk.dll
+          copy build-shared\neurosdk.lib artifacts\libneurosdk.lib
+          copy build-static\neurosdk.lib artifacts\libneurosdk_static.lib
           copy include\neurosdk.h artifacts\
           copy LICENSE artifacts\
           tar -czvf libneurosdk-windows-${{ matrix.arch }}.tar.gz -C artifacts .

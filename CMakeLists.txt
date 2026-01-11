@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
-project(libneurosdk VERSION 0.2.1)
+project(neurosdk VERSION 0.2.1)
 
 include(GNUInstallDirs)
 
