@@ -82,7 +82,8 @@ typedef enum neurosdk_message_kind {
 	NeuroSDK_MessageKind_ActionsForce,
 	NeuroSDK_MessageKind_ActionResult,
 	// Server to Client (S2C)
-	NeuroSDK_MessageKind_Action
+	NeuroSDK_MessageKind_Action,
+	NeuroSDK_MessageKind_StartupResponse
 } neurosdk_message_kind_e;
 
 // Callbacks
@@ -143,6 +144,12 @@ typedef struct neurosdk_message_action {
 	char *data;
 } neurosdk_message_action_t;
 
+// Startup Response
+typedef struct neurosdk_message_startup_response {
+	char *command;
+	char *data;
+} neurosdk_message_startup_response_t;
+
 // General Message Structure
 typedef struct neurosdk_message {
 	neurosdk_message_kind_e kind;
@@ -153,6 +160,7 @@ typedef struct neurosdk_message {
 		neurosdk_message_actions_force_t actions_force;
 		neurosdk_message_action_result_t action_result;
 		neurosdk_message_action_t action;
+		neurosdk_message_startup_response_t startup_response;
 	} value;
 } neurosdk_message_t;
 
@@ -196,6 +204,12 @@ neurosdk_context_poll(neurosdk_context_t *ctx,
                       OUT int *count);
 NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
                                                        neurosdk_message_t *msg);
+
+// Character Information
+NEUROSDK_EXPORT char const *neurosdk_context_character_id(
+    neurosdk_context_t *ctx);
+NEUROSDK_EXPORT char const *neurosdk_context_character_display_name(
+    neurosdk_context_t *ctx);
 
 #ifdef __cplusplus
 }
