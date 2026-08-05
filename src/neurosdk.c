@@ -167,10 +167,6 @@ static char *escape_string(char const *str) {
 				*dst++ = '\\';
 				*dst++ = '\"';
 				break;
-			case '\'':
-				*dst++ = '\\';
-				*dst++ = '\'';
-				break;
 			default:
 				if ((unsigned char)*str < 32 || (unsigned char)*str > 126) {
 					dst += sprintf(dst, "\\x%02X", (unsigned char)*str);
