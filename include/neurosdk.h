@@ -206,6 +206,8 @@ NEUROSDK_EXPORT neurosdk_error_e neurosdk_context_send(neurosdk_context_t *ctx,
                                                        neurosdk_message_t *msg);
 
 // Character Information
+NEUROSDK_EXPORT char const *neurosdk_context_session_id(
+    neurosdk_context_t *ctx);
 NEUROSDK_EXPORT char const *neurosdk_context_character_id(
     neurosdk_context_t *ctx);
 NEUROSDK_EXPORT char const *neurosdk_context_character_display_name(

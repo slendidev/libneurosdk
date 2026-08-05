@@ -185,7 +185,7 @@ static char *escape_string(char const *str) {
 }
 
 #if defined(_MSC_VER)
-static int vasprintf(char **strp, const char *fmt, va_list ap) {
+static int vasprintf(char **strp, char const *fmt, va_list ap) {
 	va_list ap_copy;
 	int formattedLength, actualLength;
 	size_t requiredSize;
@@ -213,7 +213,7 @@ static int vasprintf(char **strp, const char *fmt, va_list ap) {
 }
 #endif
 
-static int aprintf(char **strp, const char *fmt, ...) {
+static int aprintf(char **strp, char const *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int bytes = vasprintf(strp, fmt, args);
@@ -1060,6 +1060,14 @@ neurosdk_message_destroy(neurosdk_message_t *msg) {
 		return NeuroSDK_UnknownCommand;
 	}
 	return NeuroSDK_None;
+}
+
+NEUROSDK_EXPORT char const *neurosdk_context_session_id(
+    neurosdk_context_t *ctx) {
+	if (!ctx || !(*ctx)) {
+		return NULL;
+	}
+	return ((context_t *)*ctx)->session_id;
 }
 
 NEUROSDK_EXPORT char const *neurosdk_context_character_id(
