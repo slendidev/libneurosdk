@@ -133,6 +133,10 @@ typedef struct context {
 
 	bool debug_prints : 1;
 	bool validation_layers : 1;
+
+	char *session_id;
+	char *character_id;
+	char *character_display_name;
 } context_t;
 
 static char *escape_string(char const *str) {
@@ -167,10 +171,6 @@ static char *escape_string(char const *str) {
 				*dst++ = '\\';
 				*dst++ = '\"';
 				break;
-			case '\'':
-				*dst++ = '\\';
-				*dst++ = '\'';
-				break;
 			default:
 				if ((unsigned char)*str < 32 || (unsigned char)*str > 126) {
 					dst += sprintf(dst, "\\x%02X", (unsigned char)*str);
@@ -185,7 +185,7 @@ static char *escape_string(char const *str) {
 }
 
 #if defined(_MSC_VER)
-static int vasprintf(char **strp, const char *fmt, va_list ap) {
+static int vasprintf(char **strp, char const *fmt, va_list ap) {
 	va_list ap_copy;
 	int formattedLength, actualLength;
 	size_t requiredSize;
@@ -213,7 +213,7 @@ static int vasprintf(char **strp, const char *fmt, va_list ap) {
 }
 #endif
 
-static int aprintf(char **strp, const char *fmt, ...) {
+static int aprintf(char **strp, char const *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int bytes = vasprintf(strp, fmt, args);
@@ -303,6 +303,8 @@ static neurosdk_error_e parse_s2c_json(context_t *ctx,
 
 			if (!strcmp(value_str->string, "action")) {
 				kind = NeuroSDK_MessageKind_Action;
+			} else if (!strcmp(value_str->string, "startup")) {
+				kind = NeuroSDK_MessageKind_StartupResponse;
 			} else {
 				LOG_ERROR(ctx, "[parse_s2c_json] Unknown command '%s'.",
 				          value_str->string);
@@ -319,7 +321,77 @@ static neurosdk_error_e parse_s2c_json(context_t *ctx,
 		goto cleanup;
 	}
 
-	if (kind == NeuroSDK_MessageKind_Action) {
+	if (kind == NeuroSDK_MessageKind_StartupResponse) {
+		msg->kind = NeuroSDK_MessageKind_StartupResponse;
+		root_elem = root_obj->start;
+		while (root_elem) {
+			if (!strcmp(root_elem->name->string, "data")) {
+				if (root_elem->value->type != json_type_object) {
+					LOG_ERROR(ctx, "[parse_s2c_json] 'data' field is not an object.");
+					res = NeuroSDK_InvalidJSON;
+					goto cleanup;
+				}
+				json_object_t *data_obj = (json_object_t *)root_elem->value->payload;
+				json_object_element_t *obj_root = data_obj->start;
+
+				while (obj_root) {
+					if (!strcmp(obj_root->name->string, "session")) {
+						if (obj_root->value->type != json_type_object) {
+							LOG_ERROR(ctx,
+							          "[parse_s2c_json] 'session' field is not an object.");
+							res = NeuroSDK_InvalidJSON;
+							goto cleanup;
+						}
+						json_object_t *session_obj =
+						    (json_object_t *)obj_root->value->payload;
+						json_object_element_t *session_elem = session_obj->start;
+
+						while (session_elem) {
+							if (!strcmp(session_elem->name->string, "sessionId")) {
+								if (session_elem->value->type != json_type_string) {
+									LOG_ERROR(
+									    ctx,
+									    "[parse_s2c_json] 'sessionId' field is not a string.");
+									res = NeuroSDK_InvalidJSON;
+									goto cleanup;
+								}
+								json_string_t *str =
+								    (json_string_t *)session_elem->value->payload;
+								ctx->session_id = strdup(str->string);
+							} else if (!strcmp(session_elem->name->string, "characterId")) {
+								if (session_elem->value->type != json_type_string) {
+									LOG_ERROR(
+									    ctx,
+									    "[parse_s2c_json] 'characterId' field is not a string.");
+									res = NeuroSDK_InvalidJSON;
+									goto cleanup;
+								}
+								json_string_t *str =
+								    (json_string_t *)session_elem->value->payload;
+								ctx->character_id = strdup(str->string);
+							} else if (!strcmp(session_elem->name->string, "displayName")) {
+								if (session_elem->value->type != json_type_string) {
+									LOG_ERROR(
+									    ctx,
+									    "[parse_s2c_json] 'displayName' field is not a string.");
+									res = NeuroSDK_InvalidJSON;
+									goto cleanup;
+								}
+								json_string_t *str =
+								    (json_string_t *)session_elem->value->payload;
+								ctx->character_display_name = strdup(str->string);
+							}
+							session_elem = session_elem->next;
+						}
+					}
+					obj_root = obj_root->next;
+				}
+			}
+			root_elem = root_elem->next;
+		}
+
+		goto cleanup;
+	} else if (kind == NeuroSDK_MessageKind_Action) {
 		root_elem = root_obj->start;
 		while (root_elem) {
 			if (!strcmp(root_elem->name->string, "data")) {
@@ -988,6 +1060,29 @@ neurosdk_message_destroy(neurosdk_message_t *msg) {
 		return NeuroSDK_UnknownCommand;
 	}
 	return NeuroSDK_None;
+}
+
+NEUROSDK_EXPORT char const *neurosdk_context_session_id(
+    neurosdk_context_t *ctx) {
+	if (!ctx || !(*ctx)) {
+		return NULL;
+	}
+	return ((context_t *)*ctx)->session_id;
+}
+
+NEUROSDK_EXPORT char const *neurosdk_context_character_id(
+    neurosdk_context_t *ctx) {
+	if (!ctx || !(*ctx)) {
+		return NULL;
+	}
+	return ((context_t *)*ctx)->character_id;
+}
+NEUROSDK_EXPORT char const *neurosdk_context_character_display_name(
+    neurosdk_context_t *ctx) {
+	if (!ctx || !(*ctx)) {
+		return NULL;
+	}
+	return ((context_t *)*ctx)->character_display_name;
 }
 
 #include "mongoose.c"
