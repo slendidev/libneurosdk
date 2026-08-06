@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-unix:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install dependencies on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Install dependencies on macOS
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja
+
+      - name: Build shared library
+        run: |
+          cmake \
+            -S . \
+            -B build-shared \
+            -G Ninja \
+            -DNEURO_BUILD_STATIC=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-shared --parallel
+
+      - name: Build static library
+        run: |
+          cmake \
+            -S . \
+            -B build-static \
+            -G Ninja \
+            -DNEURO_BUILD_STATIC=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-static --parallel
+
+  build-windows:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - amd64_x86
+          - amd64_arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Install dependencies
+        run: choco install -y cmake ninja
+
+      - name: Build shared library
+        run: |
+          cmake `
+            -S . `
+            -B build-shared `
+            -G Ninja `
+            -DNEURO_BUILD_STATIC=OFF `
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-shared --parallel
+
+      - name: Build static library
+        run: |
+          cmake `
+            -S . `
+            -B build-static `
+            -G Ninja `
+            -DNEURO_BUILD_STATIC=ON `
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-static --parallel
+

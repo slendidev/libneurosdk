@@ -1,127 +1,205 @@
-name: Release Build
+name: Release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "**"
-    tags:
-      - "v*"
-  pull_request:
+    inputs:
+      tag:
+        description: Release tag, for example v1.2.0
+        required: true
+        type: string
+
+      prerelease:
+        description: Mark as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build-linux:
-    name: Build on Linux
+  validate:
+    name: Validate release
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$RELEASE_TAG" != v* ]]; then
+            echo "::error::Release tag must start with 'v'"
+            exit 1
+          fi
+
+  build-unix:
+    name: Package ${{ matrix.platform }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            shared_library: build-shared/libneurosdk.so
+
+          - os: macos-latest
+            platform: macos
+            shared_library: build-shared/libneurosdk.dylib
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install -y cmake ninja-build
-
-      - name: Build the library
+      - name: Install dependencies on Linux
+        if: runner.os == 'Linux'
         run: |
-          cmake -S . -B build-shared -G Ninja -DNEURO_BUILD_STATIC=OFF -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-shared
-          cmake -S . -B build-static -G Ninja -DNEURO_BUILD_STATIC=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-static
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
 
-      - name: Package artifacts
+      - name: Install dependencies on macOS
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja
+
+      - name: Build libraries
         run: |
-          ls
+          cmake \
+            -S . \
+            -B build-shared \
+            -G Ninja \
+            -DNEURO_BUILD_STATIC=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-shared --parallel
+
+          cmake \
+            -S . \
+            -B build-static \
+            -G Ninja \
+            -DNEURO_BUILD_STATIC=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-static --parallel
+
+      - name: Package libraries
+        run: |
           mkdir artifacts
-          cp build-shared/libneurosdk.so artifacts/
+
+          cp "${{ matrix.shared_library }}" artifacts/
           cp build-static/libneurosdk.a artifacts/
           cp include/neurosdk.h artifacts/
           cp LICENSE artifacts/
-          tar -czvf libneurosdk-linux.tar.gz -C artifacts .
 
-      - name: Upload Linux artifacts
+          tar -czf \
+            "libneurosdk-${{ matrix.platform }}.tar.gz" \
+            -C artifacts .
+
+      - name: Upload package
         uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: libneurosdk-linux
-          path: libneurosdk-linux.tar.gz
+          name: libneurosdk-${{ matrix.platform }}
+          path: libneurosdk-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
 
   build-windows:
-    name: Build on Windows
+    name: Package Windows ${{ matrix.arch }}
+    needs: validate
     runs-on: windows-latest
+
     strategy:
+      fail-fast: false
       matrix:
         arch:
           - amd64
           - amd64_x86
           - amd64_arm64
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}
 
       - name: Install dependencies
         run: choco install -y cmake ninja
 
-      - name: Build the library
+      - name: Build libraries
         run: |
-          cmake -S . -B build-shared -G Ninja -DNEURO_BUILD_STATIC=OFF -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-shared
-          cmake -S . -B build-static -G Ninja -DNEURO_BUILD_STATIC=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-static
+          cmake `
+            -S . `
+            -B build-shared `
+            -G Ninja `
+            -DNEURO_BUILD_STATIC=OFF `
+            -DCMAKE_BUILD_TYPE=Release
 
-      - name: Package artifacts
+          cmake --build build-shared --parallel
+
+          cmake `
+            -S . `
+            -B build-static `
+            -G Ninja `
+            -DNEURO_BUILD_STATIC=ON `
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build-static --parallel
+
+      - name: Package libraries
         run: |
-          dir
-          mkdir artifacts
-          copy build-shared\neurosdk.dll artifacts\libneurosdk.dll
-          copy build-shared\neurosdk.lib artifacts\libneurosdk.lib
-          copy build-static\neurosdk.lib artifacts\libneurosdk_static.lib
-          copy include\neurosdk.h artifacts\
-          copy LICENSE artifacts\
-          tar -czvf libneurosdk-windows-${{ matrix.arch }}.tar.gz -C artifacts .
+          New-Item -ItemType Directory -Force artifacts
 
-      - name: Upload Windows artifacts
+          Copy-Item build-shared/neurosdk.dll artifacts/libneurosdk.dll
+          Copy-Item build-shared/neurosdk.lib artifacts/libneurosdk.lib
+          Copy-Item build-static/neurosdk.lib artifacts/libneurosdk_static.lib
+          Copy-Item include/neurosdk.h artifacts/
+          Copy-Item LICENSE artifacts/
+
+          tar -czf `
+            "libneurosdk-windows-${{ matrix.arch }}.tar.gz" `
+            -C artifacts .
+
+      - name: Upload package
         uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: libneurosdk-windows-${{ matrix.arch }}
           path: libneurosdk-windows-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
 
   release:
-    name: Create Release
+    name: Create GitHub release
+    needs:
+      - build-unix
+      - build-windows
+
     runs-on: ubuntu-latest
-    needs: [build-linux, build-windows]
-    if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
     steps:
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+      - name: Download packages
+        uses: actions/download-artifact@v5
         with:
-          name: libneurosdk-linux
+          path: dist
+          merge-multiple: true
 
-      - name: Download Windows artifacts (amd64)
-        uses: actions/download-artifact@v4
-        with:
-          name: libneurosdk-windows-amd64
+      - name: Display packages
+        run: ls -lah dist
 
-      - name: Download Windows artifacts (amd64_x86)
-        uses: actions/download-artifact@v4
+      - name: Create release
+        uses: softprops/action-gh-release@v3
         with:
-          name: libneurosdk-windows-amd64_x86
-
-      - name: Download Windows artifacts (amd64_arm64)
-        uses: actions/download-artifact@v4
-        with:
-          name: libneurosdk-windows-amd64_arm64
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
-        with:
-          files: |
-            libneurosdk-linux.tar.gz
-            libneurosdk-windows-amd64.tar.gz
-            libneurosdk-windows-amd64_x86.tar.gz
-            libneurosdk-windows-amd64_arm64.tar.gz
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*.tar.gz
