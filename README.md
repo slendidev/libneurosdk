@@ -10,7 +10,8 @@ Please check the header file.
 
 Contributions are always welcome! Fork the repository and create pull requests
 with your changes. Make sure you follow the formatting of the rest of the
-codebase, which you can make sure you do by using `clang-format`.
+codebase, which you can make sure you do by using `clang-format`. For more
+information, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
 ## License
 
