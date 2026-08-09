@@ -998,7 +998,7 @@ neurosdk_context_send(neurosdk_context_t *ctx, neurosdk_message_t *msg) {
 
 			bytes =
 			    aprintf(&str,
-			            "{\"command\":\"action:result\",\"game\":\"%s\",\"data\":{"
+			            "{\"command\":\"action/result\",\"game\":\"%s\",\"data\":{"
 			            "\"id\":\"%s\",\"success\":%s,\"message\":%s}}",
 			            context->game_name, msg->value.action_result.id,
 			            msg->value.action_result.success ? "true" : "false", message);
